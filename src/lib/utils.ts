@@ -36,3 +36,15 @@ export function daysAgo(n: number): string {
 export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
 }
+
+/** Extract flag emoji from a country string like "India 🇮🇳" */
+export function extractFlag(country: string | null): string {
+  if (!country) return "";
+  // Match regional indicator symbols (flag emoji)
+  const m = country.match(/(\p{Regional_Indicator}{2})/u);
+  if (m) return m[1];
+  // Fallback: look for any emoji
+  const emoji = country.match(/(\p{Emoji_Presentation})/u);
+  if (emoji) return emoji[1];
+  return "";
+}

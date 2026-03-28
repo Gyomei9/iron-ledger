@@ -65,7 +65,7 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const options: any = useMemo(() => {
-    const c = colors || { text2: "#999", muted: "#666", surface2: "#2a2a2a", text: "#fff", border: "#333", acRgb: "99,102,241" };
+    const c = colors || { text2: "#999", muted: "#666", surface: "#1a1a1a", surface2: "#2a2a2a", text: "#fff", border: "#333", acRgb: "99,102,241" };
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -83,9 +83,9 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
           },
         },
         tooltip: {
-          backgroundColor: "#15171c",
-          titleColor: "#f0f0f3",
-          bodyColor: "#d1d5db",
+          backgroundColor: c.surface || "#15171c",
+          titleColor: c.text || "#f0f0f3",
+          bodyColor: c.text2 || "#d1d5db",
           borderColor: `rgba(${c.acRgb}, 0.2)`,
           borderWidth: 1,
           cornerRadius: 10,

@@ -4,11 +4,24 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import StatCard from "@/components/ui/StatCard";
 import ProgressChart from "@/components/charts/ProgressChart";
-import { DAY_TARGETS, MUSCLE_COLORS, MuscleGroup } from "@/lib/types";
-import { COMPOUND_LIFTS } from "@/lib/exercises";
+import { MUSCLE_COLORS, MuscleGroup } from "@/lib/types";
+import { EXERCISE_DB, COMPOUND_LIFTS } from "@/lib/exercises";
 import { fmtDate, cn } from "@/lib/utils";
 
 const ALL_MUSCLES: MuscleGroup[] = ["Chest", "Shoulders", "Triceps", "Back", "Biceps", "Quads", "Hamstrings", "Glutes", "Calves"];
+
+// Build a set of exercise name fragments per muscle for matching logged names
+function getExerciseNamesForMuscle(muscle: MuscleGroup): string[] {
+  const entries = EXERCISE_DB[muscle] || [];
+  return entries.map((e) => e.name.toLowerCase());
+}
+
+function exerciseMatchesMuscle(exerciseName: string, muscle: MuscleGroup): boolean {
+  const names = getExerciseNamesForMuscle(muscle);
+  const lower = exerciseName.toLowerCase();
+  // Check if the logged exercise name contains any of the base exercise names for this muscle
+  return names.some((n) => lower.includes(n.toLowerCase()));
+}
 
 export default function ProgressPage() {
   const { user } = useAuth();
@@ -23,10 +36,14 @@ export default function ProgressPage() {
     const names = new Set<string>();
     for (const w of myWorkouts) {
       const exs = exercises.filter((e) => e.workout_id === w.id);
-      for (const ex of exs) names.add(ex.exercise_name);
+      for (const ex of exs) {
+        if (exerciseMatchesMuscle(ex.exercise_name, muscle)) {
+          names.add(ex.exercise_name);
+        }
+      }
     }
     return [...names].sort();
-  }, [myWorkouts, exercises]);
+  }, [myWorkouts, exercises, muscle]);
 
   // Compute progress data
   const progressData = useMemo(() => {
@@ -57,7 +74,7 @@ export default function ProgressPage() {
       }
     }
 
-    const bodyweight = 75; // default
+    const bodyweight = 75;
     return {
       points,
       maxWeight: overallMax,
@@ -83,7 +100,7 @@ export default function ProgressPage() {
               className={cn("target-btn", muscle === m && "active")}
               style={{ "--chip-color": MUSCLE_COLORS[m] } as React.CSSProperties}
             >
-              <span className="chip-dot" style={{ background: MUSCLE_COLORS[m], width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: "0.3rem" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: "0.3rem", background: MUSCLE_COLORS[m] }} />
               {m}
             </button>
           ))}
@@ -104,7 +121,7 @@ export default function ProgressPage() {
             </button>
           ))}
           {availableExNames.length === 0 && (
-            <p className="assess-label">No exercises logged yet</p>
+            <p className="assess-label">No exercises logged for {muscle}</p>
           )}
         </div>
       </div>

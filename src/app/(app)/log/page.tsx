@@ -71,6 +71,7 @@ export default function LogPage() {
 
   const addExercise = (ex: LogExercise) => {
     setExercises((prev) => [...prev, ex]);
+    startTimer();
   };
 
   const removeExercise = (idx: number) => {

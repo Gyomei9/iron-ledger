@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { fmtDate } from "@/lib/utils";
 
 const MON_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -9,39 +9,57 @@ interface DatePickerProps {
   onChange: (dateStr: string) => void;
   placeholder?: string;
   initialMode?: "days" | "months" | "years";
+  autoOpen?: boolean;
 }
 
-export default function DatePicker({ value, onChange, placeholder = "Select date", initialMode }: DatePickerProps) {
+export default function DatePicker({ value, onChange, placeholder = "Select date", initialMode, autoOpen }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value + "T00:00:00");
     return new Date();
   });
-  const [mode, setMode] = useState<"days" | "months" | "years">("days");
+  const [mode, setMode] = useState<"days" | "months" | "years">(initialMode || "days");
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const didAutoOpen = useRef(false);
+
+  // Auto-open on mount if requested
+  useEffect(() => {
+    if (autoOpen && !didAutoOpen.current) {
+      didAutoOpen.current = true;
+      // Small delay to let the trigger render and get its position
+      requestAnimationFrame(() => {
+        setOpen(true);
+        if (initialMode) setMode(initialMode);
+      });
+    }
+  }, [autoOpen, initialMode]);
 
   // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setMode("days");
+        setMode(initialMode || "days");
       }
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, []);
+  }, [initialMode]);
 
   // Position dropdown
-  useEffect(() => {
-    if (open && triggerRef.current && dropdownRef.current) {
+  const positionDropdown = useCallback(() => {
+    if (triggerRef.current && dropdownRef.current) {
       const r = triggerRef.current.getBoundingClientRect();
       dropdownRef.current.style.top = (r.bottom + 6) + "px";
       dropdownRef.current.style.left = r.left + "px";
     }
-  }, [open, mode]);
+  }, []);
+
+  useEffect(() => {
+    if (open) positionDropdown();
+  }, [open, mode, positionDropdown]);
 
   // Sync viewDate when value changes externally
   useEffect(() => {
@@ -51,7 +69,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   const toggle = () => {
     if (open) {
       setOpen(false);
-      setMode("days");
+      setMode(initialMode || "days");
     } else {
       setOpen(true);
       if (initialMode) setMode(initialMode);
@@ -61,7 +79,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   const pickDate = (ds: string) => {
     onChange(ds);
     setOpen(false);
-    setMode("days");
+    setMode(initialMode || "days");
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -77,14 +95,12 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
 
     const cells: { day: number; dateStr: string; cls: string }[] = [];
 
-    // Previous month days
     for (let i = 0; i < startDay; i++) {
       const day = prevDays - startDay + i + 1;
       const ds = new Date(y, m - 1, day).toISOString().split("T")[0];
       cells.push({ day, dateStr: ds, cls: "dp-cell other" });
     }
 
-    // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
       const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       let cls = "dp-cell";
@@ -93,7 +109,6 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
       cells.push({ day: d, dateStr: ds, cls });
     }
 
-    // Next month days
     const total = startDay + daysInMonth;
     const remaining = (7 - (total % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
@@ -111,7 +126,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
   const prevYear = () => setViewDate(new Date(y - 1, m, 1));
   const nextYear = () => setViewDate(new Date(y + 1, m, 1));
 
-  const yearBase = y - (y % 12);
+  // Year grid: show decade centered around current year
+  const yearBase = Math.floor(y / 10) * 10;
 
   return (
     <div className="dp-wrap" ref={wrapRef}>
@@ -134,9 +150,9 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         {mode === "days" && (
           <>
             <div className="dp-nav">
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); prevMonth(); }}>&#x276E;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); prevMonth(); }}>&#x276E;</button>
               <span className="dp-year-month" onClick={(e) => { e.stopPropagation(); setMode("months"); }}>{monthName}</span>
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); nextMonth(); }}>&#x276F;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); nextMonth(); }}>&#x276F;</button>
             </div>
             <div className="dp-grid days">
               {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
@@ -158,9 +174,9 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         {mode === "months" && (
           <>
             <div className="dp-nav">
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); prevYear(); }}>&#x276E;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); prevYear(); }}>&#x276E;</button>
               <span className="dp-year-month" onClick={(e) => { e.stopPropagation(); setMode("years"); }}>{y}</span>
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); nextYear(); }}>&#x276F;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); nextYear(); }}>&#x276F;</button>
             </div>
             <div className="dp-grid months">
               {MON_ABBR.map((mn, i) => {
@@ -182,9 +198,9 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         {mode === "years" && (
           <>
             <div className="dp-nav">
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(y - 12, m, 1)); }}>&#x276E;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(y - 12, m, 1)); }}>&#x276E;</button>
               <span className="dp-year-month">{yearBase} &mdash; {yearBase + 11}</span>
-              <button className="dp-nav-btn" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(y + 12, m, 1)); }}>&#x276F;</button>
+              <button className="dp-nav-btn" type="button" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(y + 12, m, 1)); }}>&#x276F;</button>
             </div>
             <div className="dp-grid years">
               {Array.from({ length: 12 }, (_, i) => yearBase + i).map((yr) => (

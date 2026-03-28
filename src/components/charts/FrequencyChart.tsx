@@ -15,7 +15,7 @@ function getColors() {
   if (typeof window === "undefined") return null;
   const cs = getComputedStyle(document.documentElement);
   const v = (p: string) => cs.getPropertyValue(p).trim();
-  return { text2: v("--text2"), muted: v("--muted"), border: v("--border"), acRgb: v("--ac-rgb") };
+  return { text: v("--text"), text2: v("--text2"), muted: v("--muted"), surface: v("--surface"), border: v("--border"), acRgb: v("--ac-rgb") };
 }
 
 export default function FrequencyChart({ workouts }: Props) {
@@ -30,19 +30,27 @@ export default function FrequencyChart({ workouts }: Props) {
 
   const chartData = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Build all months from first to last workout
     const months: string[] = [];
     const monthMap: Record<string, Record<DayType, number>> = {};
 
+    if (sorted.length > 0) {
+      const first = new Date(sorted[0].date + "T00:00:00");
+      const last = new Date(sorted[sorted.length - 1].date + "T00:00:00");
+      const d = new Date(first.getFullYear(), first.getMonth(), 1);
+      while (d <= last) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        months.push(key);
+        monthMap[key] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
+        d.setMonth(d.getMonth() + 1);
+      }
+    }
+
     for (const w of sorted) {
       const d = new Date(w.date + "T00:00:00");
-      const y = String(d.getFullYear());
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const key = y + "-" + m;
-      if (!monthMap[key]) {
-        monthMap[key] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
-        months.push(key);
-      }
-      monthMap[key][w.day_type as DayType]++;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (monthMap[key]) monthMap[key][w.day_type as DayType]++;
     }
 
     const dayTypes: DayType[] = ["Push", "Pull", "Legs", "Arms"];
@@ -67,7 +75,7 @@ export default function FrequencyChart({ workouts }: Props) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const options: any = useMemo(() => {
-    const c = colors || { text2: "#999", muted: "#666", border: "#333", acRgb: "99,102,241" };
+    const c = colors || { text: "#fff", text2: "#999", muted: "#666", surface: "#15171c", border: "#333", acRgb: "99,102,241" };
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -85,9 +93,9 @@ export default function FrequencyChart({ workouts }: Props) {
           },
         },
         tooltip: {
-          backgroundColor: "#15171c",
-          titleColor: "#f0f0f3",
-          bodyColor: "#d1d5db",
+          backgroundColor: c.surface || "#15171c",
+          titleColor: c.text || "#f0f0f3",
+          bodyColor: c.text2 || "#d1d5db",
           borderColor: `rgba(${c.acRgb}, 0.2)`,
           borderWidth: 1,
           cornerRadius: 10,
@@ -111,6 +119,7 @@ export default function FrequencyChart({ workouts }: Props) {
           grid: { color: "rgba(42,45,54,0.3)" },
           ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 11 }, stepSize: 1 },
           beginAtZero: true,
+          max: 30,
           title: { display: true, text: "Sessions", color: c.muted, font: { family: "Plus Jakarta Sans", size: 10 } },
         },
       },

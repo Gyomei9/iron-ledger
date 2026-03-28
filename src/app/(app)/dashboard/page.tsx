@@ -114,13 +114,14 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Calendar date picker — opens at month level for quick range selection */}
+      {/* Calendar date picker — auto-opens at month level for quick range selection */}
       {showCal && (
         <div style={{ marginBottom: "1rem" }}>
           <DatePicker
             value={customFrom}
             placeholder="Pick start date"
             initialMode="months"
+            autoOpen
             onChange={(dateStr) => {
               setCustomFrom(dateStr);
               setRange("custom");
@@ -153,7 +154,7 @@ export default function DashboardPage() {
       {/* Frequency chart - uses ALL user workouts */}
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Monthly Grind</h3>
+          <h3 className="card-title">Monthly Progress</h3>
         </div>
         <div className="card-body">
           <div className="chart-wrap">

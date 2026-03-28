@@ -69,7 +69,7 @@ export default function ProgressChart({ data, accentColor }: Props) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const options: any = useMemo(() => {
-    const c = colors || { text2: "#999", muted: "#666", surface2: "#2a2a2a", text: "#fff", border: "#333", ac: "#3b82f6", acRgb: "59,130,246" };
+    const c = colors || { text2: "#999", muted: "#666", surface: "#1a1a1a", surface2: "#2a2a2a", text: "#fff", border: "#333", ac: "#3b82f6", acRgb: "59,130,246" };
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -81,9 +81,9 @@ export default function ProgressChart({ data, accentColor }: Props) {
           labels: { color: c.text2, font: { family: "Plus Jakarta Sans", size: 11, weight: "600" }, usePointStyle: true, pointStyle: "circle", padding: 16 },
         },
         tooltip: {
-          backgroundColor: "#15171c",
-          titleColor: "#f0f0f3",
-          bodyColor: "#d1d5db",
+          backgroundColor: c.surface || "#15171c",
+          titleColor: c.text || "#f0f0f3",
+          bodyColor: c.text2 || "#d1d5db",
           borderColor: `rgba(${c.acRgb}, 0.2)`,
           borderWidth: 1,
           cornerRadius: 10,
