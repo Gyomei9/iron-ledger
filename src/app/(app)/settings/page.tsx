@@ -6,7 +6,7 @@ import { THEMES, Gym, DEFAULT_GYMS, MuscleGroup } from "@/lib/types";
 import { EXERCISE_DB } from "@/lib/exercises";
 import { WORLD_COUNTRIES } from "@/lib/countries";
 import { cn } from "@/lib/utils";
-import { Trash2, Plus, ChevronDown, ChevronRight, Dumbbell } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronRight, Dumbbell, Settings, Palette } from "lucide-react";
 import FlagImg from "@/components/ui/FlagImg";
 
 type SettingsTab = "general" | "exercises";
@@ -16,9 +16,13 @@ const MUSCLE_GROUPS: MuscleGroup[] = [
   "Quads", "Hamstrings", "Glutes", "Calves", "Adductors", "Abductors",
 ];
 
+const EQUIPMENT_TAGS = ["Barbell", "Dumbbell", "Cable", "Machine", "Bodyweight", "EZ-Bar"];
+const ANGLE_TAGS = ["Flat", "Incline", "Decline"];
+
 interface CustomExercise {
   name: string;
   muscle: MuscleGroup;
+  tags?: string[];
 }
 
 export default function SettingsPage() {
@@ -26,7 +30,6 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [tab, setTab] = useState<SettingsTab>("general");
   const [gyms, setGyms] = useState<Gym[]>([]);
-  const [country, setCountry] = useState("India");
   const [preferredGym, setPreferredGym] = useState("");
   const [newGymName, setNewGymName] = useState("");
   const [newGymCountry, setNewGymCountry] = useState("India");
@@ -37,6 +40,7 @@ export default function SettingsPage() {
   const [hiddenExercises, setHiddenExercises] = useState<string[]>([]);
   const [newExName, setNewExName] = useState("");
   const [newExMuscle, setNewExMuscle] = useState<MuscleGroup>("Chest");
+  const [newExTags, setNewExTags] = useState<string[]>([]);
 
   useEffect(() => {
     const savedGyms = localStorage.getItem("il-gyms");
@@ -46,15 +50,8 @@ export default function SettingsPage() {
       setGyms(DEFAULT_GYMS);
       localStorage.setItem("il-gyms", JSON.stringify(DEFAULT_GYMS));
     }
-    const savedCountry = localStorage.getItem("il-country");
-    if (savedCountry) {
-      // Migrate old format "India 🇮🇳" to just "India"
-      const name = savedCountry.replace(/\s*[\p{Emoji_Presentation}\p{Regional_Indicator}]+\s*/gu, "").trim();
-      setCountry(name || savedCountry);
-    }
     const savedPref = localStorage.getItem("il-preferred-gym");
     if (savedPref) setPreferredGym(savedPref);
-    // Load custom exercises
     const savedCustom = localStorage.getItem("il-custom-exercises");
     if (savedCustom) setCustomExercises(JSON.parse(savedCustom));
     const savedHidden = localStorage.getItem("il-hidden-exercises");
@@ -79,12 +76,6 @@ export default function SettingsPage() {
     toast("Gym removed", "info");
   };
 
-  const updateCountry = (val: string) => {
-    setCountry(val);
-    localStorage.setItem("il-country", val);
-    toast("Default country updated", "success");
-  };
-
   const updatePreferredGym = (val: string) => {
     setPreferredGym(val);
     localStorage.setItem("il-preferred-gym", val);
@@ -92,12 +83,17 @@ export default function SettingsPage() {
   };
 
   // Exercise management
+  const toggleTag = (tag: string) => {
+    setNewExTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+  };
+
   const addCustomExercise = () => {
     if (!newExName.trim()) return;
-    const updated = [...customExercises, { name: newExName.trim(), muscle: newExMuscle }];
+    const updated = [...customExercises, { name: newExName.trim(), muscle: newExMuscle, tags: newExTags.length > 0 ? [...newExTags] : undefined }];
     setCustomExercises(updated);
     localStorage.setItem("il-custom-exercises", JSON.stringify(updated));
     setNewExName("");
+    setNewExTags([]);
     toast("Exercise added", "success");
   };
 
@@ -117,13 +113,14 @@ export default function SettingsPage() {
   };
 
   const exercisesByMuscle = useMemo(() => {
-    const map: Record<string, { id: string; name: string; isCustom: boolean; hidden: boolean }[]> = {};
+    const map: Record<string, { id: string; name: string; isCustom: boolean; hidden: boolean; tags?: string[]; variations?: string }[]> = {};
     for (const mg of MUSCLE_GROUPS) {
       const builtIn = (EXERCISE_DB[mg] || []).map((e) => ({
         id: e.id,
         name: e.name,
         isCustom: false,
         hidden: hiddenExercises.includes(e.id),
+        variations: e.v ? e.v.map((v) => v.opts.join(", ")).join(" | ") : undefined,
       }));
       const custom = customExercises
         .filter((c) => c.muscle === mg)
@@ -132,6 +129,7 @@ export default function SettingsPage() {
           name: c.name,
           isCustom: true,
           hidden: false,
+          tags: c.tags,
         }));
       map[mg] = [...builtIn, ...custom];
     }
@@ -144,19 +142,20 @@ export default function SettingsPage() {
   return (
     <div>
       {/* Tab bar */}
-      <div className="dash-range" style={{ marginBottom: "1.5rem" }}>
+      <div className="settings-tabs">
         <button
           onClick={() => setTab("general")}
-          className={`dash-range-btn${tab === "general" ? " active" : ""}`}
+          className={cn("settings-tab", tab === "general" && "active")}
         >
-          General
+          <Settings size={14} />
+          <span>General</span>
         </button>
         <button
           onClick={() => setTab("exercises")}
-          className={`dash-range-btn${tab === "exercises" ? " active" : ""}`}
+          className={cn("settings-tab", tab === "exercises" && "active")}
         >
-          <Dumbbell size={14} style={{ marginRight: 4, verticalAlign: "middle" }} />
-          Exercises
+          <Dumbbell size={14} />
+          <span>Exercises</span>
         </button>
       </div>
 
@@ -171,9 +170,9 @@ export default function SettingsPage() {
               <div className="card-body">
                 {gyms.map((g, i) => (
                   <div key={i} className="assess-item" style={{ marginBottom: "0.5rem" }}>
-                    <span className="assess-label">
-                      <FlagImg country={g.country} size={14} />
-                      <span style={{ marginLeft: 6 }}>{g.name}</span>
+                    <span className="assess-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <FlagImg country={g.country} size={16} />
+                      {g.name}
                     </span>
                     <button onClick={() => removeGym(i)} className="btn btn-danger btn-sm">
                       <Trash2 size={12} />
@@ -205,15 +204,15 @@ export default function SettingsPage() {
                     </select>
                   </div>
                 </div>
-                <button onClick={addGym} className="btn btn-primary">
-                  <Plus size={14} style={{ marginRight: 4 }} /> Add
+                <button onClick={addGym} className="btn btn-primary btn-sm">
+                  <Plus size={14} style={{ marginRight: 4 }} /> Add Gym
                 </button>
               </div>
             </div>
           </section>
 
           {/* Preferred Gym */}
-          <section style={{ marginTop: "2rem" }}>
+          <section style={{ marginTop: "1.5rem" }}>
             <div className="card">
               <div className="card-header">
                 <h3 className="card-title">Preferred Gym</h3>
@@ -235,33 +234,11 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Default country */}
-          <section style={{ marginTop: "2rem" }}>
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Default Country</h3>
-              </div>
-              <div className="card-body">
-                <div className="form-group">
-                  <select
-                    value={country}
-                    onChange={(e) => updateCountry(e.target.value)}
-                    className="form-select"
-                  >
-                    {WORLD_COUNTRIES.map((c) => (
-                      <option key={c.code} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </section>
-
           {/* Themes */}
-          <section style={{ marginTop: "2rem" }}>
+          <section style={{ marginTop: "1.5rem" }}>
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">Theme</h3>
+                <h3 className="card-title"><Palette size={14} style={{ marginRight: 6 }} /> Theme</h3>
               </div>
               <div className="card-body">
                 <div className="form-group">
@@ -313,16 +290,18 @@ export default function SettingsPage() {
               <div className="card-body">
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 2 }}>
+                    <label className="form-label">Exercise Name</label>
                     <input
                       type="text"
                       value={newExName}
                       onChange={(e) => setNewExName(e.target.value)}
-                      placeholder="Exercise name"
+                      placeholder="e.g. Cable Fly"
                       className="form-input"
                       onKeyDown={(e) => e.key === "Enter" && addCustomExercise()}
                     />
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
+                    <label className="form-label">Muscle Group</label>
                     <select
                       value={newExMuscle}
                       onChange={(e) => setNewExMuscle(e.target.value as MuscleGroup)}
@@ -334,7 +313,40 @@ export default function SettingsPage() {
                     </select>
                   </div>
                 </div>
-                <button onClick={addCustomExercise} className="btn btn-primary">
+
+                {/* Equipment tags */}
+                <div className="form-group">
+                  <label className="form-label">Equipment</label>
+                  <div className="ex-tag-row">
+                    {EQUIPMENT_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={cn("ex-tag", newExTags.includes(tag) && "active")}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Angle tags (for press exercises) */}
+                <div className="form-group">
+                  <label className="form-label">Angle (press/fly)</label>
+                  <div className="ex-tag-row">
+                    {ANGLE_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={cn("ex-tag", newExTags.includes(tag) && "active")}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={addCustomExercise} className="btn btn-primary btn-sm">
                   <Plus size={14} style={{ marginRight: 4 }} /> Add Exercise
                 </button>
               </div>
@@ -346,7 +358,9 @@ export default function SettingsPage() {
             <div className="card">
               <div className="card-header">
                 <h3 className="card-title">Exercise Catalog</h3>
-                <span className="assess-label">{hiddenExercises.length} hidden</span>
+                {hiddenExercises.length > 0 && (
+                  <span className="ex-hidden-count">{hiddenExercises.length} hidden</span>
+                )}
               </div>
               <div className="card-body" style={{ padding: 0 }}>
                 {MUSCLE_GROUPS.map((mg) => {
@@ -367,18 +381,25 @@ export default function SettingsPage() {
                       </button>
                       {isExpanded && (
                         <div className="ex-catalog-list">
-                          {exList.map((ex, idx) => (
+                          {exList.map((ex) => (
                             <div key={ex.id} className={cn("ex-catalog-item", ex.hidden && "ex-hidden")}>
-                              <span className="ex-catalog-name">
-                                {ex.name}
-                                {ex.isCustom && <span className="ex-custom-badge">custom</span>}
-                              </span>
+                              <div className="ex-catalog-info">
+                                <span className="ex-catalog-name">
+                                  {ex.name}
+                                  {ex.isCustom && <span className="ex-custom-badge">custom</span>}
+                                </span>
+                                {ex.variations && (
+                                  <span className="ex-catalog-vars">{ex.variations}</span>
+                                )}
+                                {ex.tags && ex.tags.length > 0 && (
+                                  <span className="ex-catalog-vars">{ex.tags.join(", ")}</span>
+                                )}
+                              </div>
                               <div className="ex-catalog-actions">
                                 {!ex.isCustom && (
                                   <button
                                     className={cn("btn btn-sm", ex.hidden ? "btn-primary" : "btn-secondary")}
                                     onClick={() => toggleHideExercise(ex.id)}
-                                    title={ex.hidden ? "Show exercise" : "Hide exercise"}
                                   >
                                     {ex.hidden ? "Show" : "Hide"}
                                   </button>

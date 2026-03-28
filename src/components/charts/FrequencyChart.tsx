@@ -5,7 +5,7 @@ import "./ChartSetup";
 import type { Workout } from "@/lib/types";
 import { DAY_COLORS, DayType } from "@/lib/types";
 
-const _MON_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MON_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 interface Props {
   workouts: Workout[];
@@ -29,25 +29,19 @@ export default function FrequencyChart({ workouts }: Props) {
   }, []);
 
   const chartData = useMemo(() => {
-    const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
-
-    // Build all months from first to last workout
+    // Always show trailing 12 months ending at current month
+    const now = new Date();
     const months: string[] = [];
     const monthMap: Record<string, Record<DayType, number>> = {};
 
-    if (sorted.length > 0) {
-      const first = new Date(sorted[0].date + "T00:00:00");
-      const last = new Date(sorted[sorted.length - 1].date + "T00:00:00");
-      const d = new Date(first.getFullYear(), first.getMonth(), 1);
-      while (d <= last) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        months.push(key);
-        monthMap[key] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
-        d.setMonth(d.getMonth() + 1);
-      }
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      months.push(key);
+      monthMap[key] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
     }
 
-    for (const w of sorted) {
+    for (const w of workouts) {
       const d = new Date(w.date + "T00:00:00");
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (monthMap[key]) monthMap[key][w.day_type as DayType]++;
@@ -56,7 +50,7 @@ export default function FrequencyChart({ workouts }: Props) {
     const dayTypes: DayType[] = ["Push", "Pull", "Legs", "Arms"];
     const displayLabels = months.map((ym) => {
       const [y, m] = ym.split("-");
-      return _MON_ABBR[parseInt(m) - 1] + " " + y.slice(2);
+      return MON_ABBR[parseInt(m) - 1] + " '" + y.slice(2);
     });
 
     return {
@@ -64,12 +58,11 @@ export default function FrequencyChart({ workouts }: Props) {
       datasets: dayTypes.map((dt) => ({
         label: dt,
         data: months.map((m) => monthMap[m]?.[dt] ?? 0),
-        backgroundColor: DAY_COLORS[dt] + "40",
+        backgroundColor: DAY_COLORS[dt] + "60",
         borderColor: DAY_COLORS[dt],
-        borderWidth: 1,
-        borderRadius: 6,
+        borderWidth: 1.5,
+        borderRadius: 4,
         borderSkipped: false,
-        maxBarThickness: 18,
       })),
     };
   }, [workouts]);
@@ -85,12 +78,15 @@ export default function FrequencyChart({ workouts }: Props) {
       plugins: {
         legend: {
           position: "top",
+          align: "start",
           labels: {
             color: c.text2,
             font: { family: "Plus Jakarta Sans", size: 11, weight: "600" },
             usePointStyle: true,
             pointStyle: "rectRounded",
-            padding: 16,
+            padding: 14,
+            boxWidth: 10,
+            boxHeight: 10,
           },
         },
         tooltip: {
@@ -104,7 +100,7 @@ export default function FrequencyChart({ workouts }: Props) {
           titleFont: { family: "Plus Jakarta Sans", size: 12, weight: "600" },
           bodyFont: { family: "Plus Jakarta Sans", size: 13, weight: "500" },
           titleMarginBottom: 6,
-          displayColors: false,
+          displayColors: true,
           caretSize: 6,
           caretPadding: 8,
         },
@@ -112,15 +108,22 @@ export default function FrequencyChart({ workouts }: Props) {
       scales: {
         x: {
           stacked: true,
-          grid: { color: "rgba(42,45,54,0.4)" },
-          ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 11 } },
+          grid: { display: false },
+          ticks: {
+            color: c.muted,
+            font: { family: "Plus Jakarta Sans", size: 10 },
+            maxRotation: 0,
+          },
         },
         y: {
           stacked: true,
-          grid: { color: "rgba(42,45,54,0.3)" },
-          ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 11 }, stepSize: 1 },
+          grid: { color: c.border + "30" },
+          ticks: {
+            color: c.muted,
+            font: { family: "Plus Jakarta Sans", size: 11 },
+            stepSize: 2,
+          },
           beginAtZero: true,
-          max: 30,
           title: { display: true, text: "Sessions", color: c.muted, font: { family: "Plus Jakarta Sans", size: 10 } },
         },
       },

@@ -176,7 +176,7 @@ export default function DashboardPage() {
           <h3 className="card-title">Monthly Progress</h3>
         </div>
         <div className="card-body">
-          <div className="chart-wrap">
+          <div className="chart-wrap" style={{ height: 360 }}>
             <FrequencyChart workouts={allMyWorkouts} />
           </div>
         </div>

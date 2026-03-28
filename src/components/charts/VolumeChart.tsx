@@ -33,51 +33,51 @@ export default function VolumeChart({ workouts, exercises, sets, exercisesByWork
 
   const chartData = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+    const dayTypes: DayType[] = ["Push", "Pull", "Legs", "Arms"];
 
-    // Build per-date total volume + per-daytype breakdown for tooltip
-    const dateVolume: { date: string; total: number; byType: Record<string, number> }[] = [];
+    // Build per-date, per-daytype volume
+    const allDates: string[] = [];
+    const dateSet = new Set<string>();
+    const dateVol: Record<string, Record<DayType, number>> = {};
 
     for (const w of sorted) {
+      if (!dateSet.has(w.date)) {
+        dateSet.add(w.date);
+        allDates.push(w.date);
+        dateVol[w.date] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
+      }
       const exs = exercisesByWorkout ? (exercisesByWorkout.get(w.id) || []) : exercises.filter((e) => e.workout_id === w.id);
       let vol = 0;
       for (const ex of exs) {
         const ss = setsByExercise ? (setsByExercise.get(ex.id) || []) : sets.filter((s) => s.exercise_id === ex.id);
         for (const s of ss) vol += (s.weight_kg + ex.barbell_weight) * s.reps;
       }
-      // Merge into same date if multiple workouts on same day
-      const existing = dateVolume.find((d) => d.date === w.date);
-      if (existing) {
-        existing.total += vol;
-        existing.byType[w.day_type] = (existing.byType[w.day_type] || 0) + vol;
-      } else {
-        dateVolume.push({ date: w.date, total: vol, byType: { [w.day_type]: vol } });
-      }
+      dateVol[w.date][w.day_type as DayType] += vol;
     }
 
-    const c = colors;
-    const acColor = c?.ac || "#6366f1";
-
     return {
-      labels: dateVolume.map((d) => d.date),
-      datasets: [
-        {
-          label: "Total Volume",
-          data: dateVolume.map((d) => d.total),
-          borderColor: acColor,
-          backgroundColor: acColor + "18",
+      labels: allDates,
+      datasets: dayTypes.map((dt) => {
+        const raw = allDates.map((d) => dateVol[d][dt] || 0);
+        // Only include if there's any data for this day type
+        if (raw.every((v) => v === 0)) return null;
+        return {
+          label: dt,
+          data: raw.map((v) => v || null), // null for zero so lines break
+          borderColor: DAY_COLORS[dt],
+          backgroundColor: DAY_COLORS[dt] + "15",
           fill: true,
           tension: 0.35,
           pointRadius: 3,
           pointHoverRadius: 6,
-          pointBackgroundColor: acColor,
-          pointBorderColor: acColor,
+          pointBackgroundColor: DAY_COLORS[dt],
+          pointBorderColor: DAY_COLORS[dt],
           borderWidth: 2,
-          spanGaps: true,
-        },
-      ],
-      _meta: dateVolume, // stash for tooltip
+          spanGaps: false,
+        };
+      }).filter((d): d is NonNullable<typeof d> => d !== null),
     };
-  }, [workouts, exercises, sets, colors]);
+  }, [workouts, exercises, sets, exercisesByWorkout, setsByExercise]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const options: any = useMemo(() => {
@@ -88,7 +88,16 @@ export default function VolumeChart({ workouts, exercises, sets, exercisesByWork
       interaction: { intersect: false, mode: "index" },
       hover: { mode: "index", intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          position: "top",
+          labels: {
+            color: c.text2,
+            font: { family: "Plus Jakarta Sans", size: 11, weight: "600" },
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 16,
+          },
+        },
         tooltip: {
           backgroundColor: c.surface || "#15171c",
           titleColor: c.text || "#f0f0f3",
@@ -100,21 +109,12 @@ export default function VolumeChart({ workouts, exercises, sets, exercisesByWork
           titleFont: { family: "Plus Jakarta Sans", size: 12, weight: "600" },
           bodyFont: { family: "Plus Jakarta Sans", size: 12, weight: "500" },
           titleMarginBottom: 6,
-          displayColors: false,
+          displayColors: true,
           caretSize: 6,
           caretPadding: 8,
           callbacks: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            label: (ctx: any) => {
-              const meta = ctx.chart.data._meta;
-              if (!meta || !meta[ctx.dataIndex]) return `${(ctx.parsed.y / 1000).toFixed(1)}t`;
-              const entry = meta[ctx.dataIndex];
-              const lines = [`Total: ${(entry.total / 1000).toFixed(1)}t`];
-              for (const [dt, vol] of Object.entries(entry.byType) as [string, number][]) {
-                lines.push(`  ${dt}: ${(vol / 1000).toFixed(1)}t`);
-              }
-              return lines;
-            },
+            label: (ctx: any) => ctx.parsed.y != null ? ` ${ctx.dataset.label}: ${(ctx.parsed.y / 1000).toFixed(1)}t` : null,
           },
         },
       },

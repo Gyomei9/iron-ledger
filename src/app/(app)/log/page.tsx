@@ -9,7 +9,8 @@ import ExercisePicker from "@/components/workout/ExercisePicker";
 import RestTimer from "@/components/workout/RestTimer";
 import DatePicker from "@/components/ui/DatePicker";
 import { DAY_TYPES, DAY_TARGETS, DAY_ICONS, DAY_COLORS, MUSCLE_COLORS, DEFAULT_GYMS, DayType, MuscleGroup, LogExercise, Gym } from "@/lib/types";
-import { todayISO, uid, cn } from "@/lib/utils";
+import { todayISO, uid, cn, fmtDate } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function LogPage() {
@@ -134,7 +135,9 @@ export default function LogPage() {
     if (!user || exercises.length === 0) return;
     setSaving(true);
 
-    const country = localStorage.getItem("il-country") || "India \u{1F1EE}\u{1F1F3}";
+    // Country tied to selected gym
+    const selectedGym = gyms.find((g) => g.name === gym);
+    const country = selectedGym?.country || "India";
     const workoutId = uid();
     const payload = {
       workout: { id: workoutId, date, day_type: dayType, notes: notes || null, gym: gym || null, country },
@@ -180,10 +183,11 @@ export default function LogPage() {
 
   return (
     <div>
-      {/* Date */}
-      <div className="form-group">
-        <label className="form-label">Date</label>
-        <DatePicker value={date} onChange={setDate} />
+      {/* Date + Day Type row */}
+      <div className="log-header-row">
+        <div className="log-date-block">
+          <DatePicker value={date} onChange={setDate} placeholder="Select date" />
+        </div>
       </div>
 
       {/* Day type */}
