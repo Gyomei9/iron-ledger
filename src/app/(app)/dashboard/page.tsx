@@ -114,13 +114,12 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Calendar date picker — auto-opens at month level for quick range selection */}
+      {/* Calendar date picker */}
       {showCal && (
         <div style={{ marginBottom: "1rem" }}>
           <DatePicker
             value={customFrom}
-            placeholder="Pick start date"
-            initialMode="months"
+            placeholder="Start Date"
             autoOpen
             onChange={(dateStr) => {
               setCustomFrom(dateStr);

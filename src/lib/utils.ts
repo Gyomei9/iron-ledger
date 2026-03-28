@@ -37,6 +37,22 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
+/** Map country names to ISO 3166-1 alpha-2 codes for flag images */
+const COUNTRY_CODES: Record<string, string> = {
+  India: "in", USA: "us", UK: "gb", UAE: "ae", Singapore: "sg",
+  Australia: "au", Canada: "ca", Germany: "de", Japan: "jp",
+  France: "fr", Brazil: "br", China: "cn", Korea: "kr",
+};
+
+/** Get ISO country code from a country string like "India 🇮🇳" */
+export function getCountryCode(country: string | null): string {
+  if (!country) return "";
+  for (const [name, code] of Object.entries(COUNTRY_CODES)) {
+    if (country.includes(name)) return code;
+  }
+  return "";
+}
+
 /** Extract flag emoji from a country string like "India 🇮🇳" */
 export function extractFlag(country: string | null): string {
   if (!country) return "";

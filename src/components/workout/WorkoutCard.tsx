@@ -1,6 +1,7 @@
 "use client";
 import { Workout, WorkoutExercise, ExerciseSet, DAY_COLORS, DAY_ICONS } from "@/lib/types";
-import { fmtDate, formatVolume, extractFlag } from "@/lib/utils";
+import { fmtDate, formatVolume } from "@/lib/utils";
+import FlagImg from "@/components/ui/FlagImg";
 
 interface Props {
   workout: Workout;
@@ -35,7 +36,7 @@ export default function WorkoutCard({ workout, exercises, sets, authorName, onCl
           <div className="workout-card-date">{fmtDate(workout.date)}</div>
           {workout.gym && (
             <div className="workout-card-location">
-              <span className="wc-flag">{extractFlag(workout.country)}</span>
+              <span className="wc-flag"><FlagImg country={workout.country} size={14} /></span>
               <span className="wc-gym">{workout.gym}</span>
             </div>
           )}

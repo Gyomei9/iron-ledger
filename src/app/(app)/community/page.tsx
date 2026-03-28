@@ -4,7 +4,8 @@ import { useStore } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import Modal from "@/components/ui/Modal";
 import { DayType, DAY_ICONS, DAY_COLORS, COUNTRIES, Workout } from "@/lib/types";
-import { fmtDate, formatVolume, cn, extractFlag } from "@/lib/utils";
+import { fmtDate, formatVolume, cn } from "@/lib/utils";
+import FlagImg from "@/components/ui/FlagImg";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -104,8 +105,6 @@ export default function CommunityPage() {
     return p?.display_name || "?";
   };
 
-  // extractFlag is imported from utils
-
   if (loading) return <div className="empty-state"><div className="empty-text">Loading...</div></div>;
 
   return (
@@ -160,8 +159,6 @@ export default function CommunityPage() {
         let totalVol = 0;
         let totalSets = 0;
         const gym = w.gym || "";
-        const flag = extractFlag(w.country);
-
         return (
           <div
             key={w.id}
@@ -174,7 +171,7 @@ export default function CommunityPage() {
                 <div className="workout-card-date">{fmtDate(w.date)}</div>
                 {gym && (
                   <div className="workout-card-location">
-                    <span className="wc-flag">{flag}</span>
+                    <span className="wc-flag"><FlagImg country={w.country} size={14} /></span>
                     <span className="wc-gym">{gym}</span>
                   </div>
                 )}

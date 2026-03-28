@@ -1,6 +1,6 @@
 "use client";
-import { useMemo, useRef, useEffect, useState } from "react";
-import { Line } from "react-chartjs-2";
+import { useMemo, useEffect, useState } from "react";
+import { Bar } from "react-chartjs-2";
 import "./ChartSetup";
 import type { Workout, WorkoutExercise, ExerciseSet } from "@/lib/types";
 import { DAY_COLORS, DayType } from "@/lib/types";
@@ -20,7 +20,6 @@ function getColors() {
 
 export default function VolumeChart({ workouts, exercises, sets }: Props) {
   const [colors, setColors] = useState(getColors);
-  const chartRef = useRef(null);
 
   useEffect(() => {
     setColors(getColors());
@@ -31,37 +30,41 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
 
   const chartData = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Group by date, then by day type
+    const dateMap: Record<string, Record<DayType, number>> = {};
+    const allDates: string[] = [];
+
+    for (const w of sorted) {
+      if (!dateMap[w.date]) {
+        dateMap[w.date] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
+        allDates.push(w.date);
+      }
+      const exs = exercises.filter((e) => e.workout_id === w.id);
+      let vol = 0;
+      for (const ex of exs) {
+        const ss = sets.filter((s) => s.exercise_id === ex.id);
+        for (const s of ss) vol += (s.weight_kg + ex.barbell_weight) * s.reps;
+      }
+      dateMap[w.date][w.day_type as DayType] += vol;
+    }
+
     const dayTypes: DayType[] = ["Push", "Pull", "Legs", "Arms"];
 
-    const datasets = dayTypes.map((dt) => {
-      const filtered = sorted.filter((w) => w.day_type === dt);
-      if (filtered.length === 0) return null;
-      return {
+    return {
+      labels: allDates,
+      datasets: dayTypes.map((dt) => ({
         label: dt,
-        data: filtered.map((w) => {
-          const exs = exercises.filter((e) => e.workout_id === w.id);
-          let vol = 0;
-          for (const ex of exs) {
-            const ss = sets.filter((s) => s.exercise_id === ex.id);
-            for (const s of ss) vol += (s.weight_kg + ex.barbell_weight) * s.reps;
-          }
-          return { x: w.date, y: vol };
-        }),
+        data: allDates.map((d) => dateMap[d]?.[dt] || 0),
+        backgroundColor: DAY_COLORS[dt] + "90",
         borderColor: DAY_COLORS[dt],
-        backgroundColor: DAY_COLORS[dt] + "20",
-        fill: true,
-        tension: 0.35,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointBackgroundColor: DAY_COLORS[dt],
-        pointBorderColor: DAY_COLORS[dt],
-        borderWidth: 2,
-        spanGaps: true,
-      };
-    }).filter((d): d is NonNullable<typeof d> => d !== null);
-
-    return { datasets };
-  }, [workouts, exercises, sets, colors]);
+        borderWidth: 1,
+        borderRadius: 4,
+        borderSkipped: false,
+        maxBarThickness: 18,
+      })),
+    };
+  }, [workouts, exercises, sets]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const options: any = useMemo(() => {
@@ -78,7 +81,7 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
             color: c.text2,
             font: { family: "Plus Jakarta Sans", size: 11, weight: "600" },
             usePointStyle: true,
-            pointStyle: "circle",
+            pointStyle: "rectRounded",
             padding: 16,
           },
         },
@@ -98,16 +101,18 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
           caretPadding: 8,
           callbacks: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            label: (ctx: any) => ctx.parsed.y !== null ? `${ctx.dataset.label}: ${(ctx.parsed.y / 1000).toFixed(1)}t` : null,
+            label: (ctx: any) => ctx.parsed.y > 0 ? `${ctx.dataset.label}: ${(ctx.parsed.y / 1000).toFixed(1)}t` : null,
           },
         },
       },
       scales: {
         x: {
+          stacked: true,
           grid: { display: false },
           ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
         },
         y: {
+          stacked: true,
           grid: { color: c.border + "40" },
           ticks: {
             color: c.muted,
@@ -125,6 +130,6 @@ export default function VolumeChart({ workouts, exercises, sets }: Props) {
   }
 
   return (
-    <Line ref={chartRef} data={chartData} options={options} />
+    <Bar data={chartData} options={options} />
   );
 }

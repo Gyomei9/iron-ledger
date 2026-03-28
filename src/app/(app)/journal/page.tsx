@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import { useToast } from "@/hooks/useToast";
 import Modal from "@/components/ui/Modal";
-import { DayType, DAY_TYPES, Workout, COUNTRIES } from "@/lib/types";
+import { DayType, DAY_TYPES, Workout } from "@/lib/types";
 import { fmtDate, formatVolume, cn } from "@/lib/utils";
+import FlagImg from "@/components/ui/FlagImg";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -110,14 +111,6 @@ export default function JournalPage() {
     return p?.display_name || "?";
   };
 
-  const getFlagForCountry = (country: string | null) => {
-    if (!country) return "";
-    const flagMatch = country.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|[\u{1F1E0}-\u{1F1FF}]{2})\s*/u);
-    if (flagMatch) return flagMatch[1];
-    const c = COUNTRIES.find((ct) => ct.name === country);
-    return c ? c.flag : "";
-  };
-
   if (loading) return <div className="empty-state"><div className="empty-text">Loading...</div></div>;
 
   return (
@@ -177,7 +170,7 @@ export default function JournalPage() {
             let totalSets = 0;
             const ownerName = getOwnerName(w.user_id);
             const gym = w.gym || "";
-            const flag = getFlagForCountry(w.country);
+
 
             return (
               <div
@@ -193,7 +186,7 @@ export default function JournalPage() {
                     </div>
                     {gym && (
                       <div className="workout-card-location">
-                        <span className="wc-flag">{flag}</span>
+                        <span className="wc-flag"><FlagImg country={w.country} size={14} /></span>
                         <span className="wc-gym">{gym}</span>
                       </div>
                     )}

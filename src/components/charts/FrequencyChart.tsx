@@ -69,6 +69,7 @@ export default function FrequencyChart({ workouts }: Props) {
         borderWidth: 1,
         borderRadius: 6,
         borderSkipped: false,
+        maxBarThickness: 18,
       })),
     };
   }, [workouts]);
