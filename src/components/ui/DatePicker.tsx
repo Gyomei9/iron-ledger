@@ -36,7 +36,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
     }
   }, [autoOpen, initialMode]);
 
-  // Close on outside click
+  // Close on outside click — use mousedown so it doesn't race with React's onClick
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
@@ -44,8 +44,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         setMode(initialMode || "days");
       }
     };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [initialMode]);
 
   // Position dropdown
