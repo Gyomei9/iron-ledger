@@ -7,7 +7,8 @@ import StatCard from "@/components/ui/StatCard";
 import VolumeChart from "@/components/charts/VolumeChart";
 import FrequencyChart from "@/components/charts/FrequencyChart";
 import DatePicker from "@/components/ui/DatePicker";
-import { daysAgo } from "@/lib/utils";
+import { daysAgo, todayISO } from "@/lib/utils";
+import { CalendarDays } from "lucide-react";
 
 const RANGES = ["1W", "2W", "1M", "3M", "All"] as const;
 type Range = (typeof RANGES)[number] | "custom";
@@ -23,16 +24,27 @@ const RANGE_LABELS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { workouts, exercises, sets, loading } = useStore();
+  const { workouts, exercises, sets, loading, exercisesByWorkout, setsByExercise } = useStore();
   const [range, setRange] = useState<Range>("1M");
   const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [showCal, setShowCal] = useState(false);
 
-  const cutoff = range === "All" ? "" : range === "custom" ? customFrom : daysAgo(RANGE_DAYS[range] || 30);
+  const cutoffStart = range === "All" ? "" : range === "custom" ? customFrom : daysAgo(RANGE_DAYS[range] || 30);
+  const cutoffEnd = range === "custom" && customTo ? customTo : todayISO();
 
   const myWorkouts = useMemo(
-    () => workouts.filter((w) => w.user_id === user?.id && (range === "All" || w.date >= cutoff)),
-    [workouts, user, range, cutoff]
+    () => workouts.filter((w) => {
+      if (w.user_id !== user?.id) return false;
+      if (range === "All") return true;
+      if (range === "custom") {
+        if (customFrom && w.date < customFrom) return false;
+        if (customTo && w.date > customTo) return false;
+        return true;
+      }
+      return w.date >= cutoffStart;
+    }),
+    [workouts, user, range, cutoffStart, customFrom, customTo]
   );
 
   const allMyWorkouts = useMemo(
@@ -51,10 +63,10 @@ export default function DashboardPage() {
     const uniqueExNames = new Set<string>();
 
     for (const w of myWorkouts) {
-      const exs = exercises.filter((e) => e.workout_id === w.id);
+      const exs = exercisesByWorkout.get(w.id) || [];
       for (const ex of exs) {
         uniqueExNames.add(ex.exercise_name);
-        const ss = sets.filter((s) => s.exercise_id === ex.id);
+        const ss = setsByExercise.get(ex.id) || [];
         for (const s of ss) {
           const weight = parseFloat(String(s.weight_kg)) || 0;
           const barbell = parseFloat(String(ex.barbell_weight)) || 0;
@@ -72,7 +84,7 @@ export default function DashboardPage() {
       volumeRaw: totalVol.toLocaleString() + " kg",
       uniqueEx: uniqueExNames.size,
     };
-  }, [myWorkouts, exercises, sets]);
+  }, [myWorkouts, exercisesByWorkout, setsByExercise]);
 
   const filteredExercises = useMemo(
     () => exercises.filter((e) => myWorkouts.some((w) => w.id === e.workout_id)),
@@ -94,7 +106,7 @@ export default function DashboardPage() {
         {RANGES.map((r) => (
           <button
             key={r}
-            onClick={() => setRange(r)}
+            onClick={() => { setRange(r); setShowCal(false); }}
             className={`dash-range-btn${range === r ? " active" : ""}`}
           >
             {r}
@@ -106,7 +118,7 @@ export default function DashboardPage() {
           className={`dash-range-cal${range === "custom" ? " active" : ""}`}
           title="Custom date range"
         >
-          📅
+          <CalendarDays size={16} />
         </button>
 
         <Link href="/log" className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }}>
@@ -114,9 +126,9 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Calendar date picker */}
+      {/* Calendar date range picker */}
       {showCal && (
-        <div style={{ marginBottom: "1rem" }}>
+        <div className="date-range-row">
           <DatePicker
             value={customFrom}
             placeholder="Start Date"
@@ -124,7 +136,15 @@ export default function DashboardPage() {
             onChange={(dateStr) => {
               setCustomFrom(dateStr);
               setRange("custom");
-              setShowCal(false);
+            }}
+          />
+          <span className="date-range-sep">&mdash;</span>
+          <DatePicker
+            value={customTo}
+            placeholder="End Date"
+            onChange={(dateStr) => {
+              setCustomTo(dateStr);
+              setRange("custom");
             }}
           />
         </div>
@@ -145,7 +165,7 @@ export default function DashboardPage() {
         </div>
         <div className="card-body">
           <div className="chart-wrap">
-            <VolumeChart workouts={myWorkouts} exercises={filteredExercises} sets={filteredSets} />
+            <VolumeChart workouts={myWorkouts} exercises={filteredExercises} sets={filteredSets} exercisesByWorkout={exercisesByWorkout} setsByExercise={setsByExercise} />
           </div>
         </div>
       </div>

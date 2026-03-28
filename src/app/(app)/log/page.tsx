@@ -232,7 +232,7 @@ export default function LogPage() {
           >
             <option value="">Select gym...</option>
             {gyms.map((g) => (
-              <option key={g.name} value={g.name}>{g.country} {g.name}</option>
+              <option key={g.name} value={g.name}>{g.name} ({g.country})</option>
             ))}
           </select>
         </div>

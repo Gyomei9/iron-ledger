@@ -2,28 +2,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  LayoutDashboard, PenLine, BookOpen, TrendingUp,
+  Users, Dna, Settings, Power,
+} from "lucide-react";
 
 const NAV_SECTIONS = [
   {
     label: "Main",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: "📊" },
-      { href: "/log", label: "Log Workout", icon: "✏️" },
-      { href: "/journal", label: "My Journal", icon: "📖" },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/log", label: "Log Workout", icon: PenLine },
+      { href: "/journal", label: "My Journal", icon: BookOpen },
     ],
   },
   {
     label: "Insights",
     items: [
-      { href: "/progress", label: "Progress", icon: "📈" },
-      { href: "/community", label: "Community", icon: "👥" },
-      { href: "/physique", label: "Physique", icon: "🧬" },
+      { href: "/progress", label: "Progress", icon: TrendingUp },
+      { href: "/community", label: "Community", icon: Users },
+      { href: "/physique", label: "Physique", icon: Dna },
     ],
   },
   {
     label: "Profile",
     items: [
-      { href: "/settings", label: "Settings", icon: "⚙" },
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -74,7 +78,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <div className="user-role">Athlete</div>
             </div>
             <button className="logout-btn" onClick={logout} title="Sign out">
-              ⏻
+              <Power size={14} />
             </button>
           </div>
         )}
@@ -86,6 +90,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <div className="nav-section">{section.label}</div>
               {section.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
@@ -93,7 +98,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     onClick={onClose}
                     className={`nav-item${active ? " active" : ""}`}
                   >
-                    <span className="nav-icon">{item.icon}</span>
+                    <span className="nav-icon"><Icon size={16} /></span>
                     {item.label}
                   </Link>
                 );

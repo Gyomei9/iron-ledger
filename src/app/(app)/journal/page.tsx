@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import { DayType, DAY_TYPES, Workout } from "@/lib/types";
 import { fmtDate, formatVolume, cn } from "@/lib/utils";
 import FlagImg from "@/components/ui/FlagImg";
+import { Trash2 } from "lucide-react";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -19,7 +20,7 @@ const DAY_BADGE_CLASS: Record<DayType, string> = {
 
 export default function JournalPage() {
   const { user } = useAuth();
-  const { workouts, exercises, sets, profiles, loadAll, loading } = useStore();
+  const { workouts, exercises, sets, profiles, loadAll, loading, exercisesByWorkout, setsByExercise } = useStore();
   const { toast } = useToast();
   const [filter, setFilter] = useState<DayType | "All">("All");
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -61,9 +62,9 @@ export default function JournalPage() {
 
     for (const w of myWorkouts) {
       if (w.date.startsWith(monthStr)) thisMonth++;
-      const exs = exercises.filter((e) => e.workout_id === w.id);
+      const exs = exercisesByWorkout.get(w.id) || [];
       for (const ex of exs) {
-        const ss = sets.filter((s) => s.exercise_id === ex.id);
+        const ss = setsByExercise.get(ex.id) || [];
         for (const s of ss) {
           totalVol += (parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight || 0))) * parseInt(String(s.reps));
         }
@@ -165,7 +166,7 @@ export default function JournalPage() {
 
           {/* Workout cards */}
           {wks.map((w) => {
-            const exs = exercises.filter((e) => e.workout_id === w.id);
+            const exs = exercisesByWorkout.get(w.id) || [];
             let totalVol = 0;
             let totalSets = 0;
             const ownerName = getOwnerName(w.user_id);
@@ -202,7 +203,7 @@ export default function JournalPage() {
                     <span className="empty-text">No exercises logged</span>
                   )}
                   {exs.map((ex) => {
-                    const ss = sets.filter((s) => s.exercise_id === ex.id);
+                    const ss = setsByExercise.get(ex.id) || [];
                     totalSets += ss.length;
                     return (
                       <div key={ex.id} className="ex-line">
@@ -271,7 +272,7 @@ export default function JournalPage() {
             {exercises
               .filter((e) => e.workout_id === detailId)
               .map((ex) => {
-                const ss = sets.filter((s) => s.exercise_id === ex.id);
+                const ss = setsByExercise.get(ex.id) || [];
                 let vol = 0;
                 return (
                   <div key={ex.id} className="month-group">
@@ -318,7 +319,7 @@ export default function JournalPage() {
             <div className="workout-card-summary">
               {detailWorkout.user_id === user?.id && (
                 <button onClick={deleteWorkout} className="btn btn-danger btn-sm">
-                  🗑 Delete Workout
+                  <Trash2 size={12} style={{ marginRight: 4 }} /> Delete Workout
                 </button>
               )}
               <button onClick={() => setDetailId(null)} className="btn btn-secondary btn-sm">
