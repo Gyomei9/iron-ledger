@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
   visible: boolean;
@@ -50,47 +49,38 @@ export default function RestTimer({ visible, onDismiss }: Props) {
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
+  if (!visible) return null;
+
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          className="fixed bottom-20 md:bottom-6 right-4 z-50 bg-surface border border-border rounded-xl shadow-lg p-4 w-56"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[0.72rem] font-bold uppercase tracking-wider text-text-muted">Rest</span>
-            <button onClick={onDismiss} className="text-text-muted hover:text-text text-sm">✕</button>
-          </div>
+    <div className="rest-timer" style={{ display: "block" }}>
+      <div className="rt-label">
+        Rest
+        <button onClick={onDismiss} className="rt-btn" style={{ float: "right" }}>✕</button>
+      </div>
 
-          <div className="text-center mb-3">
-            <span className={`text-3xl font-extrabold tabular-nums ${remaining === 0 ? "text-ok" : "text-gradient"}`}>
-              {mins}:{secs.toString().padStart(2, "0")}
-            </span>
-          </div>
+      <div className="rt-time">
+        {mins}:{secs.toString().padStart(2, "0")}
+      </div>
 
-          {/* Progress bar */}
-          <div className="h-1.5 bg-surface-3 rounded-full mb-3 overflow-hidden">
-            <div
-              className="h-full bg-accent-grad rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
+      {/* Progress bar */}
+      <div className="rt-progress">
+        <div
+          className="rt-progress-bar"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
 
-          <div className="flex gap-1.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.seconds}
-                onClick={() => start(p.seconds)}
-                className="flex-1 py-1 text-[0.68rem] font-semibold rounded-md bg-surface-2 border border-border text-text-2 hover:border-accent/50 transition"
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      <div className="rt-btns">
+        {PRESETS.map((p) => (
+          <button
+            key={p.seconds}
+            onClick={() => start(p.seconds)}
+            className="rt-btn"
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

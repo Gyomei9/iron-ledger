@@ -18,46 +18,49 @@ export default function WorkoutCard({ workout, exercises, sets, authorName, onCl
   for (const ex of exs) {
     const ss = sets.filter((s) => s.exercise_id === ex.id);
     totalSets += ss.length;
-    for (const s of ss) totalVol += (s.weight_kg + ex.barbell_weight) * s.reps;
+    for (const s of ss) totalVol += (parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight))) * parseInt(String(s.reps), 10);
   }
 
+  const dayTypeClass = workout.day_type === "Push" ? "b-push"
+    : workout.day_type === "Pull" ? "b-pull"
+    : workout.day_type === "Legs" ? "b-legs"
+    : workout.day_type === "Arms" ? "b-arms"
+    : "";
+
   return (
-    <div
-      onClick={onClick}
-      className={`bg-surface border border-border rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${onClick ? "cursor-pointer" : ""}`}
-    >
+    <div onClick={onClick} className="workout-card">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[0.78rem] font-semibold text-text-2">{fmtDate(workout.date)}</span>
+      <div className="workout-card-top">
+        <div>
+          <div className="workout-card-date">{fmtDate(workout.date)}</div>
           {workout.gym && (
-            <span className="text-[0.68rem] text-text-muted">
-              {workout.country} {workout.gym}
-            </span>
+            <div className="workout-card-location">
+              <span className="wc-flag">{workout.country}</span>
+              <span className="wc-gym">{workout.gym}</span>
+            </div>
           )}
         </div>
-        <span
-          className="px-2 py-0.5 rounded-pill text-[0.65rem] font-bold text-white"
-          style={{ backgroundColor: DAY_COLORS[workout.day_type] }}
-        >
+        <span className={`badge ${dayTypeClass}`}>
           {DAY_ICONS[workout.day_type]} {workout.day_type}
         </span>
       </div>
 
       {/* Exercises */}
-      <div className="space-y-2 mb-3">
+      <div className="workout-card-exercises">
         {exs.map((ex) => {
           const ss = sets.filter((s) => s.exercise_id === ex.id);
           return (
-            <div key={ex.id}>
-              <span className="text-[0.78rem] font-semibold">{ex.exercise_name}</span>
-              <div className="flex gap-1.5 mt-1 flex-wrap">
+            <div key={ex.id} className="ex-line">
+              <span className="ex-name">
+                {ex.exercise_name}
+                {parseFloat(String(ex.barbell_weight)) > 0 && (
+                  <span className="barbell-tag">+{ex.barbell_weight}kg bar</span>
+                )}
+              </span>
+              <div className="ex-sets">
                 {ss.map((s) => (
-                  <span
-                    key={s.id}
-                    className="px-1.5 py-0.5 bg-surface-2 border border-border rounded text-[0.65rem] font-medium text-text-2"
-                  >
-                    {s.weight_kg}×{s.reps}
+                  <span key={s.id} className="set-pill">
+                    {s.weight_kg}<span className="set-unit">kg</span>×{s.reps}
                   </span>
                 ))}
               </div>
@@ -67,11 +70,11 @@ export default function WorkoutCard({ workout, exercises, sets, authorName, onCl
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-3 text-[0.68rem] text-text-muted font-medium border-t border-border pt-2">
-        <span>{exs.length} exercises</span>
-        <span>{totalSets} sets</span>
-        <span>{formatVolume(totalVol)}</span>
-        {authorName && <span className="ml-auto">{authorName}</span>}
+      <div className="workout-card-summary">
+        <span className="ws-item"><b>{exs.length}</b> exercises</span>
+        <span className="ws-item"><b>{totalSets}</b> sets</span>
+        <span className="ws-item"><b>{formatVolume(totalVol)}</b></span>
+        {authorName && <span className="ws-author">{authorName}</span>}
       </div>
     </div>
   );

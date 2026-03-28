@@ -2,6 +2,8 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { Workout, WorkoutExercise, ExerciseSet, Profile } from "@/lib/types";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 interface StoreData {
   workouts: Workout[];
   exercises: WorkoutExercise[];
@@ -33,7 +35,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const loadAll = useCallback(async () => {
     setData((d) => ({ ...d, loading: true }));
     try {
-      const res = await fetch("/api/data");
+      const res = await fetch(`${BASE}/api/data`);
       if (!res.ok) throw new Error("Failed to load data");
       const json = await res.json();
       setData({

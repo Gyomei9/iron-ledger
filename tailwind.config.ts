@@ -50,6 +50,13 @@ const config: Config = {
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
       },
+      backgroundImage: {
+        "accent-grad": "var(--ac-grad)",
+        "accent-grad2": "var(--ac-grad2)",
+      },
+      backgroundColor: {
+        bg: "var(--bg)",
+      },
     },
   },
   plugins: [],

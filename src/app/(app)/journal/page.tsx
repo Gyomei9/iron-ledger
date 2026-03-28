@@ -3,15 +3,22 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import { useToast } from "@/hooks/useToast";
-import WorkoutCard from "@/components/workout/WorkoutCard";
 import Modal from "@/components/ui/Modal";
-import StatCard from "@/components/ui/StatCard";
-import { DayType, DAY_TYPES, DAY_COLORS, Workout } from "@/lib/types";
-import { getMonthKey, formatVolume, fmtDate, cn } from "@/lib/utils";
+import { DayType, DAY_TYPES, Workout, COUNTRIES } from "@/lib/types";
+import { fmtDate, formatVolume, cn } from "@/lib/utils";
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
+const DAY_BADGE_CLASS: Record<DayType, string> = {
+  Push: "b-push",
+  Pull: "b-pull",
+  Legs: "b-legs",
+  Arms: "b-arms",
+};
 
 export default function JournalPage() {
   const { user } = useAuth();
-  const { workouts, exercises, sets, loadAll, loading } = useStore();
+  const { workouts, exercises, sets, profiles, loadAll, loading } = useStore();
   const { toast } = useToast();
   const [filter, setFilter] = useState<DayType | "All">("All");
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -21,10 +28,10 @@ export default function JournalPage() {
     [workouts, user]
   );
 
-  const filtered = useMemo(
-    () => filter === "All" ? myWorkouts : myWorkouts.filter((w) => w.day_type === filter),
-    [myWorkouts, filter]
-  );
+  const filtered = useMemo(() => {
+    const list = filter === "All" ? myWorkouts : myWorkouts.filter((w) => w.day_type === filter);
+    return [...list].sort((a, b) => b.date.localeCompare(a.date));
+  }, [myWorkouts, filter]);
 
   // Stats
   const stats = useMemo(() => {
@@ -37,16 +44,17 @@ export default function JournalPage() {
     const sortedDates = [...new Set(myWorkouts.map((w) => w.date))].sort().reverse();
     if (sortedDates.length > 0) {
       const today = new Date();
-      const check = new Date(sortedDates[0] + "T00:00:00");
-      const diffDays = Math.floor((today.getTime() - check.getTime()) / 86400000);
-      if (diffDays <= 1) {
-        streak = 1;
-        for (let i = 1; i < sortedDates.length; i++) {
-          const prev = new Date(sortedDates[i - 1] + "T00:00:00");
-          const curr = new Date(sortedDates[i] + "T00:00:00");
-          if ((prev.getTime() - curr.getTime()) / 86400000 <= 1) streak++;
-          else break;
-        }
+      const todayStr = today.toLocaleDateString("en-CA");
+      let checkDate = new Date(todayStr + "T00:00:00");
+      if (sortedDates[0] !== todayStr) checkDate.setDate(checkDate.getDate() - 1);
+      for (const d of sortedDates) {
+        const wd = new Date(d + "T00:00:00");
+        const diff = Math.round((checkDate.getTime() - wd.getTime()) / 86400000);
+        if (diff <= 2) {
+          streak++;
+          checkDate = new Date(wd);
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else break;
       }
     }
 
@@ -55,29 +63,39 @@ export default function JournalPage() {
       const exs = exercises.filter((e) => e.workout_id === w.id);
       for (const ex of exs) {
         const ss = sets.filter((s) => s.exercise_id === ex.id);
-        for (const s of ss) totalVol += (s.weight_kg + ex.barbell_weight) * s.reps;
+        for (const s of ss) {
+          totalVol += (parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight || 0))) * parseInt(String(s.reps));
+        }
       }
     }
 
-    return { total: myWorkouts.length, volume: formatVolume(totalVol), thisMonth, streak };
+    return { total: myWorkouts.length, volume: (totalVol / 1000).toFixed(0) + "t", thisMonth, streak };
   }, [myWorkouts, exercises, sets]);
 
   // Group by month
   const grouped = useMemo(() => {
-    const map: Record<string, Workout[]> = {};
+    const months: Record<string, Workout[]> = {};
     for (const w of filtered) {
-      const key = getMonthKey(w.date);
-      if (!map[key]) map[key] = [];
-      map[key].push(w);
+      const key = w.date.substring(0, 7);
+      if (!months[key]) months[key] = [];
+      months[key].push(w);
     }
-    return Object.entries(map);
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return Object.keys(months)
+      .sort()
+      .reverse()
+      .map((key) => {
+        const [y, m] = key.split("-");
+        const label = `${monthNames[parseInt(m) - 1]} ${y}`;
+        return { label, workouts: months[key] };
+      });
   }, [filtered]);
 
   const detailWorkout = workouts.find((w) => w.id === detailId);
 
   const deleteWorkout = async () => {
     if (!detailId) return;
-    await fetch("/api/workouts", {
+    await fetch(`${BASE}/api/workouts`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: detailId }),
@@ -87,111 +105,233 @@ export default function JournalPage() {
     await loadAll();
   };
 
-  if (loading) return <div className="text-text-muted text-sm animate-pulse">Loading...</div>;
+  const getOwnerName = (userId: string) => {
+    const p = profiles.find((pr) => pr.id === userId);
+    return p?.display_name || "?";
+  };
+
+  const getFlagForCountry = (country: string | null) => {
+    if (!country) return "";
+    const flagMatch = country.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|[\u{1F1E0}-\u{1F1FF}]{2})\s*/u);
+    if (flagMatch) return flagMatch[1];
+    const c = COUNTRIES.find((ct) => ct.name === country);
+    return c ? c.flag : "";
+  };
+
+  if (loading) return <div className="empty-state"><div className="empty-text">Loading...</div></div>;
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Sessions" value={stats.total} icon="📖" />
-        <StatCard label="Lifetime Volume" value={stats.volume} icon="💪" />
-        <StatCard label="This Month" value={stats.thisMonth} icon="📅" />
-        <StatCard label="Streak" value={`${stats.streak}d`} icon="🔥" />
-      </div>
+    <div>
+      {/* Journal Header */}
+      <div className="journal-header">
+        {/* Journal Stats */}
+        <div className="journal-stats">
+          {[
+            { value: stats.total, label: "Sessions" },
+            { value: stats.volume, label: "Lifetime" },
+            { value: stats.thisMonth, label: "This Month" },
+            { value: `${stats.streak}\uD83D\uDD25`, label: "Streak" },
+          ].map((stat) => (
+            <div key={stat.label} className="journal-stat">
+              <span className="js-val">{stat.value}</span>
+              <span className="js-lbl">{stat.label}</span>
+            </div>
+          ))}
+        </div>
 
-      {/* Filter */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <button
-          onClick={() => setFilter("All")}
-          className={cn(
-            "px-3 py-1.5 rounded-pill text-[0.72rem] font-semibold transition-all",
-            filter === "All" ? "bg-accent-grad text-[var(--btn-primary-text,#fff)]" : "bg-surface-2 text-text-2"
-          )}
+        {/* Filter */}
+        <select
+          className="form-select"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as DayType | "All")}
         >
-          All
-        </button>
-        {DAY_TYPES.map((dt) => (
-          <button
-            key={dt}
-            onClick={() => setFilter(dt)}
-            className={cn(
-              "px-3 py-1.5 rounded-pill text-[0.72rem] font-semibold transition-all",
-              filter === dt ? "text-white" : "bg-surface-2 text-text-2"
-            )}
-            style={filter === dt ? { backgroundColor: DAY_COLORS[dt] } : {}}
-          >
-            {dt}
-          </button>
-        ))}
+          <option value="All">All Days</option>
+          {DAY_TYPES.map((dt) => (
+            <option key={dt} value={dt}>{dt}</option>
+          ))}
+        </select>
       </div>
 
       {/* Workout list */}
-      {grouped.map(([month, wks]) => (
-        <div key={month}>
-          <h3 className="text-[0.78rem] font-bold text-text-muted mb-3">{month}</h3>
-          <div className="space-y-3">
-            {wks.map((w) => (
-              <WorkoutCard
-                key={w.id}
-                workout={w}
-                exercises={exercises}
-                sets={sets}
-                onClick={() => setDetailId(w.id)}
-              />
-            ))}
+      {grouped.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-icon">📖</div>
+          <div className="empty-text">No workouts found</div>
+        </div>
+      )}
+
+      {grouped.map(({ label, workouts: wks }) => (
+        <div key={label} className="month-group">
+          {/* Month group label */}
+          <div className="month-group-label">
+            {label}{" "}
+            <span className="mg-count">
+              {wks.length} session{wks.length > 1 ? "s" : ""}
+            </span>
           </div>
+
+          {/* Workout cards */}
+          {wks.map((w) => {
+            const exs = exercises.filter((e) => e.workout_id === w.id);
+            let totalVol = 0;
+            let totalSets = 0;
+            const ownerName = getOwnerName(w.user_id);
+            const gym = w.gym || "";
+            const flag = getFlagForCountry(w.country);
+
+            return (
+              <div
+                key={w.id}
+                onClick={() => setDetailId(w.id)}
+                className="workout-card"
+              >
+                {/* Top row */}
+                <div className="workout-card-top">
+                  <div>
+                    <div className="workout-card-date">
+                      {fmtDate(w.date)}
+                    </div>
+                    {gym && (
+                      <div className="workout-card-location">
+                        <span className="wc-flag">{flag}</span>
+                        <span className="wc-gym">{gym}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className={cn("badge", DAY_BADGE_CLASS[w.day_type])}>
+                    {w.day_type}
+                  </span>
+                </div>
+
+                {/* Exercises */}
+                <div className="workout-card-exercises">
+                  {exs.length === 0 && (
+                    <span className="empty-text">No exercises logged</span>
+                  )}
+                  {exs.map((ex) => {
+                    const ss = sets.filter((s) => s.exercise_id === ex.id);
+                    totalSets += ss.length;
+                    return (
+                      <div key={ex.id} className="ex-line">
+                        <span className="ex-name">
+                          {ex.exercise_name}
+                          {parseFloat(String(ex.barbell_weight || 0)) > 0 && (
+                            <span className="barbell-tag">
+                              +{ex.barbell_weight}kg bar
+                            </span>
+                          )}
+                        </span>
+                        <div className="ex-sets">
+                          {ss.map((s) => {
+                            const wt = parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight || 0));
+                            totalVol += wt * parseInt(String(s.reps));
+                            return (
+                              <span key={s.id} className="set-pill">
+                                {s.weight_kg}<span className="set-unit">kg</span> &times; {s.reps}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Summary row */}
+                <div className="workout-card-summary">
+                  <div className="ws-item">
+                    <b>{exs.length}</b> exercises
+                  </div>
+                  <div className="ws-item">
+                    <b>{totalSets}</b> sets
+                  </div>
+                  <div className="ws-item">
+                    <b>{totalVol.toLocaleString()}</b> kg volume
+                  </div>
+                  <span className="ws-author">
+                    {ownerName}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ))}
 
-      {filtered.length === 0 && (
-        <div className="text-center text-text-muted text-sm py-12">No workouts found</div>
-      )}
-
       {/* Detail modal */}
-      <Modal open={!!detailId} onClose={() => setDetailId(null)} title="Workout Detail" wide>
+      <Modal open={!!detailId} onClose={() => setDetailId(null)} title={detailWorkout ? `${fmtDate(detailWorkout.date)} — ${detailWorkout.day_type} Day` : "Workout Detail"} wide>
         {detailWorkout && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-[0.82rem]">
-              <span className="font-semibold">{fmtDate(detailWorkout.date)}</span>
-              <span
-                className="px-2 py-0.5 rounded-pill text-[0.65rem] font-bold text-white"
-                style={{ backgroundColor: DAY_COLORS[detailWorkout.day_type] }}
-              >
-                {detailWorkout.day_type}
-              </span>
+          <div>
+            {/* Author */}
+            <div className="ws-item">
+              Logged by <b>{getOwnerName(detailWorkout.user_id)}</b>
             </div>
+
+            {/* Notes */}
             {detailWorkout.notes && (
-              <p className="text-[0.78rem] text-text-2 italic">{detailWorkout.notes}</p>
+              <div className="empty-text">
+                &ldquo;{detailWorkout.notes}&rdquo;
+              </div>
             )}
+
+            {/* Exercises with table format */}
             {exercises
               .filter((e) => e.workout_id === detailId)
               .map((ex) => {
                 const ss = sets.filter((s) => s.exercise_id === ex.id);
-                const vol = ss.reduce((a, s) => a + (s.weight_kg + ex.barbell_weight) * s.reps, 0);
+                let vol = 0;
                 return (
-                  <div key={ex.id} className="bg-surface-2 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[0.82rem] font-bold">{ex.exercise_name}</span>
-                      <span className="text-[0.68rem] text-text-muted">{formatVolume(vol)}</span>
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {ss.map((s) => (
-                        <span key={s.id} className="px-2 py-1 bg-surface border border-border rounded text-[0.72rem] font-medium">
-                          {s.weight_kg}kg × {s.reps}
+                  <div key={ex.id} className="month-group">
+                    <div className="ex-name">
+                      {ex.exercise_name}
+                      {parseFloat(String(ex.barbell_weight || 0)) > 0 && (
+                        <span className="barbell-tag">
+                          +{ex.barbell_weight}kg bar
                         </span>
-                      ))}
+                      )}
+                    </div>
+                    <table className="tbl">
+                      <thead>
+                        <tr>
+                          {["Set", "Weight", "Reps", "Volume"].map((h) => (
+                            <th key={h}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ss.map((s) => {
+                          const wt = parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight || 0));
+                          const v = wt * parseInt(String(s.reps));
+                          vol += v;
+                          return (
+                            <tr key={s.id}>
+                              <td>{s.set_number}</td>
+                              <td>{s.weight_kg} kg</td>
+                              <td>{s.reps}</td>
+                              <td>{v} kg</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div className="ws-item">
+                      Total volume: <b>{vol.toLocaleString()} kg</b>
                     </div>
                   </div>
                 );
               })}
-            {detailWorkout.user_id === user?.id && (
-              <button
-                onClick={deleteWorkout}
-                className="text-[0.75rem] text-danger hover:underline"
-              >
-                Delete this workout
+
+            {/* Footer buttons */}
+            <div className="workout-card-summary">
+              {detailWorkout.user_id === user?.id && (
+                <button onClick={deleteWorkout} className="btn btn-danger btn-sm">
+                  🗑 Delete Workout
+                </button>
+              )}
+              <button onClick={() => setDetailId(null)} className="btn btn-secondary btn-sm">
+                Close
               </button>
-            )}
+            </div>
           </div>
         )}
       </Modal>

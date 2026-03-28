@@ -3,8 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import { useToast } from "@/hooks/useToast";
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 import ExercisePicker from "@/components/workout/ExercisePicker";
 import RestTimer from "@/components/workout/RestTimer";
+import DatePicker from "@/components/ui/DatePicker";
 import { DAY_TYPES, DAY_TARGETS, DAY_ICONS, DayType, MuscleGroup, LogExercise, Gym } from "@/lib/types";
 import { todayISO, uid, cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -71,7 +74,7 @@ export default function LogPage() {
     setExercises((prev) => {
       const next = [...prev];
       const ex = { ...next[exIdx], sets: [...next[exIdx].sets] };
-      ex.sets[setIdx] = { ...ex.sets[setIdx], [field]: val };
+      ex.sets[setIdx] = { ...ex.sets[setIdx], [field]: parseFloat(String(val)) || 0 };
       next[exIdx] = ex;
       return next;
     });
@@ -113,7 +116,7 @@ export default function LogPage() {
 
   const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0);
   const totalVolume = exercises.reduce(
-    (a, e) => a + e.sets.reduce((b, s) => b + (s.weight + e.barbellWeight) * s.reps, 0),
+    (a, e) => a + e.sets.reduce((b, s) => b + (parseFloat(String(s.weight)) + parseFloat(String(e.barbellWeight))) * parseInt(String(s.reps), 10), 0),
     0
   );
   const elapsedMin = Math.floor(elapsed / 60);
@@ -123,7 +126,7 @@ export default function LogPage() {
     if (!user || exercises.length === 0) return;
     setSaving(true);
 
-    const country = localStorage.getItem("il-country") || "India 🇮🇳";
+    const country = localStorage.getItem("il-country") || "India \u{1F1EE}\u{1F1F3}";
     const workoutId = uid();
     const payload = {
       workout: { id: workoutId, date, day_type: dayType, notes: notes || null, gym: gym || null, country },
@@ -132,19 +135,19 @@ export default function LogPage() {
         return {
           id: exId,
           exercise_name: ex.name,
-          barbell_weight: ex.barbellWeight,
+          barbell_weight: parseFloat(String(ex.barbellWeight)) || 0,
           exercise_order: i + 1,
           sets: ex.sets.map((s, j) => ({
             id: uid(),
             set_number: j + 1,
-            weight_kg: s.weight,
-            reps: s.reps,
+            weight_kg: parseFloat(String(s.weight)) || 0,
+            reps: parseInt(String(s.reps), 10) || 0,
           })),
         };
       }),
     };
 
-    const res = await fetch("/api/workouts", {
+    const res = await fetch(`${BASE}/api/workouts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -168,53 +171,39 @@ export default function LogPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div>
       {/* Date */}
-      <div>
-        <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">Date</label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full sm:w-auto px-3 py-2 bg-surface border border-border rounded-lg text-[0.82rem] text-text"
-        />
+      <div className="form-group">
+        <label className="form-label">Date</label>
+        <DatePicker value={date} onChange={setDate} />
       </div>
 
       {/* Day type */}
-      <div>
-        <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">Day Type</label>
-        <div className="flex gap-2 flex-wrap">
+      <div className="form-group">
+        <label className="form-label">Day Type</label>
+        <div className="day-type-selector">
           {DAY_TYPES.map((dt) => (
             <button
               key={dt}
               onClick={() => selectDayType(dt)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-[0.8rem] font-semibold border transition-all",
-                dayType === dt
-                  ? "bg-accent/15 border-accent text-accent"
-                  : "border-border text-text-2 hover:border-accent/40"
-              )}
+              data-day={dt}
+              className={cn("day-type-btn", dayType === dt && "active")}
             >
-              {DAY_ICONS[dt]} {dt}
+              <span className="dt-icon">{DAY_ICONS[dt]}</span> {dt}
             </button>
           ))}
         </div>
       </div>
 
       {/* Muscle chips */}
-      <div>
-        <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">Target Muscles</label>
-        <div className="flex gap-1.5 flex-wrap">
+      <div className="form-group">
+        <label className="muscle-chip-label">Target Muscles</label>
+        <div className="muscle-group-selector">
           {DAY_TARGETS[dayType].map((m) => (
             <button
               key={m}
               onClick={() => toggleMuscle(m)}
-              className={cn(
-                "px-2.5 py-1 rounded-pill text-[0.7rem] font-medium border transition-all",
-                selectedMuscles.includes(m)
-                  ? "bg-accent/10 border-accent/40 text-accent"
-                  : "border-border text-text-muted"
-              )}
+              className={cn("muscle-chip", selectedMuscles.includes(m) && "active")}
             >
               {m}
             </button>
@@ -223,13 +212,13 @@ export default function LogPage() {
       </div>
 
       {/* Gym + Notes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">Gym</label>
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Gym</label>
           <select
             value={gym}
             onChange={(e) => setGym(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-[0.82rem] text-text"
+            className="form-select"
           >
             <option value="">Select gym...</option>
             {gyms.map((g) => (
@@ -237,92 +226,117 @@ export default function LogPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">Notes</label>
+        <div className="form-group">
+          <label className="form-label">Notes</label>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes..."
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-[0.82rem] text-text placeholder:text-text-muted"
+            className="form-input"
           />
         </div>
       </div>
 
       {/* Live stats bar */}
       {exercises.length > 0 && (
-        <div className="flex items-center gap-4 px-4 py-2.5 bg-surface-2 border border-border rounded-xl text-[0.72rem] font-semibold text-text-2">
-          <span>⏱ {elapsedMin}:{elapsedSec.toString().padStart(2, "0")}</span>
-          <span>🏋️ {exercises.length} exercises</span>
-          <span>📊 {totalSets} sets</span>
-          <span>💪 {(totalVolume / 1000).toFixed(1)}t</span>
+        <div className="live-stats">
+          <div className="live-stat">
+            <span className="ls-icon">{"\u23F1"}</span>
+            <span className="ls-val">{elapsedMin}:{elapsedSec.toString().padStart(2, "0")}</span>
+            <span className="ls-label">time</span>
+          </div>
+          <div className="live-stat">
+            <span className="ls-icon">{"\u{1F3CB}\uFE0F"}</span>
+            <span className="ls-val">{exercises.length}</span>
+            <span className="ls-label">exercises</span>
+          </div>
+          <div className="live-stat">
+            <span className="ls-icon">{"\u{1F4CA}"}</span>
+            <span className="ls-val">{totalSets}</span>
+            <span className="ls-label">sets</span>
+          </div>
+          <div className="live-stat">
+            <span className="ls-icon">{"\u{1F4AA}"}</span>
+            <span className="ls-val">{(totalVolume / 1000).toFixed(1)}t</span>
+            <span className="ls-label">volume</span>
+          </div>
         </div>
       )}
 
       {/* Exercise blocks */}
-      <div className="space-y-4">
+      <div>
         {exercises.map((ex, exIdx) => (
           <motion.div
             key={exIdx}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-surface border border-border rounded-xl p-4 shadow-sm"
+            className="exercise-block"
           >
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-[0.85rem] font-bold">
-                {ex.name}
-                {ex.barbellWeight > 0 && (
-                  <span className="text-[0.65rem] text-text-muted ml-1.5">+{ex.barbellWeight}kg bar</span>
+            <div className="exercise-header">
+              <div>
+                <span className="exercise-order-num">{exIdx + 1}</span>
+                <span className="exercise-name">{ex.name}</span>
+                {parseFloat(String(ex.barbellWeight)) > 0 && (
+                  <span className="barbell-tag">+{ex.barbellWeight}kg bar</span>
                 )}
-              </h4>
-              <button onClick={() => removeExercise(exIdx)} className="text-text-muted hover:text-danger text-sm">✕</button>
-            </div>
-
-            {/* Sets */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2rem] gap-2 text-[0.65rem] font-semibold uppercase text-text-muted">
-                <span>Set</span><span>Weight (kg)</span><span>Reps</span><span></span><span></span>
               </div>
-              {ex.sets.map((set, setIdx) => (
-                <div key={setIdx} className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem_2rem] gap-2 items-center">
-                  <span className="text-[0.78rem] font-bold text-text-muted text-center">{setIdx + 1}</span>
-                  <input
-                    type="number"
-                    value={set.weight || ""}
-                    onChange={(e) => updateSet(exIdx, setIdx, "weight", Number(e.target.value))}
-                    placeholder="0"
-                    className="px-2.5 py-1.5 bg-surface-2 border border-border rounded-md text-[0.82rem] text-text text-center"
-                  />
-                  <input
-                    type="number"
-                    value={set.reps || ""}
-                    onChange={(e) => updateSet(exIdx, setIdx, "reps", Number(e.target.value))}
-                    placeholder="0"
-                    className="px-2.5 py-1.5 bg-surface-2 border border-border rounded-md text-[0.82rem] text-text text-center"
-                  />
-                  <button
-                    onClick={() => toggleSetDone(exIdx, setIdx)}
-                    className={cn(
-                      "w-8 h-8 rounded-md flex items-center justify-center text-sm transition-all",
-                      set.done ? "bg-ok/20 text-ok" : "bg-surface-2 text-text-muted hover:bg-ok/10"
-                    )}
-                  >
-                    ✓
-                  </button>
-                  <button
-                    onClick={() => removeSet(exIdx, setIdx)}
-                    className="text-text-muted hover:text-danger text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+              <button onClick={() => removeExercise(exIdx)} className="btn btn-danger btn-sm">✕</button>
             </div>
 
-            <button
-              onClick={() => addSet(exIdx)}
-              className="mt-2 text-[0.72rem] text-accent hover:underline font-medium"
-            >
+            {/* Sets table */}
+            <table className="sets-table">
+              <thead>
+                <tr>
+                  <th>Set</th>
+                  <th>Weight (kg)</th>
+                  <th>Reps</th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {ex.sets.map((set, setIdx) => (
+                  <tr key={setIdx}>
+                    <td className="set-num">{setIdx + 1}</td>
+                    <td>
+                      <input
+                        type="number"
+                        value={set.weight || ""}
+                        onChange={(e) => updateSet(exIdx, setIdx, "weight", parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={set.reps || ""}
+                        onChange={(e) => updateSet(exIdx, setIdx, "reps", parseInt(e.target.value, 10) || 0)}
+                        placeholder="0"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => toggleSetDone(exIdx, setIdx)}
+                        className={cn("set-complete", set.done && "done")}
+                      >
+                        {set.done ? "\u2713" : ""}
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => removeSet(exIdx, setIdx)}
+                        className="btn btn-danger btn-sm"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <button onClick={() => addSet(exIdx)} className="add-set-btn">
               + Add set
             </button>
           </motion.div>
@@ -330,10 +344,10 @@ export default function LogPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="form-row">
         <button
           onClick={() => setShowPicker(true)}
-          className="flex-1 py-2.5 bg-surface border-2 border-dashed border-border rounded-xl text-[0.82rem] font-semibold text-text-2 hover:border-accent/40 hover:text-accent transition-all"
+          className="btn btn-secondary"
         >
           + Add Exercise
         </button>
@@ -341,7 +355,7 @@ export default function LogPage() {
           <button
             onClick={saveWorkout}
             disabled={saving}
-            className="px-8 py-2.5 bg-accent-grad rounded-xl text-[var(--btn-primary-text,#fff)] text-[0.82rem] font-bold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? "Saving..." : "Save Workout"}
           </button>

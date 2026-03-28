@@ -1,30 +1,43 @@
 "use client";
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import StatCard from "@/components/ui/StatCard";
 import VolumeChart from "@/components/charts/VolumeChart";
 import FrequencyChart from "@/components/charts/FrequencyChart";
-import { formatVolume, daysAgo } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import DatePicker from "@/components/ui/DatePicker";
+import { daysAgo } from "@/lib/utils";
 
 const RANGES = ["1W", "2W", "1M", "3M", "All"] as const;
-type Range = (typeof RANGES)[number];
+type Range = (typeof RANGES)[number] | "custom";
 
-const RANGE_DAYS: Record<Range, number> = {
+const RANGE_DAYS: Record<string, number> = {
   "1W": 7, "2W": 14, "1M": 30, "3M": 90, All: 9999,
+};
+
+const RANGE_LABELS: Record<string, string> = {
+  "1W": "this week", "2W": "last 2 weeks", "1M": "last 30 days",
+  "3M": "last 3 months", All: "all time", custom: "custom range",
 };
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { workouts, exercises, sets, loading } = useStore();
   const [range, setRange] = useState<Range>("1M");
+  const [customFrom, setCustomFrom] = useState("");
+  const [showCal, setShowCal] = useState(false);
 
-  const cutoff = range === "All" ? "" : daysAgo(RANGE_DAYS[range]);
+  const cutoff = range === "All" ? "" : range === "custom" ? customFrom : daysAgo(RANGE_DAYS[range] || 30);
 
   const myWorkouts = useMemo(
     () => workouts.filter((w) => w.user_id === user?.id && (range === "All" || w.date >= cutoff)),
     [workouts, user, range, cutoff]
+  );
+
+  const allMyWorkouts = useMemo(
+    () => workouts.filter((w) => w.user_id === user?.id),
+    [workouts, user]
   );
 
   const stats = useMemo(() => {
@@ -42,14 +55,21 @@ export default function DashboardPage() {
       for (const ex of exs) {
         uniqueExNames.add(ex.exercise_name);
         const ss = sets.filter((s) => s.exercise_id === ex.id);
-        for (const s of ss) totalVol += (s.weight_kg + ex.barbell_weight) * s.reps;
+        for (const s of ss) {
+          const weight = parseFloat(String(s.weight_kg)) || 0;
+          const barbell = parseFloat(String(ex.barbell_weight)) || 0;
+          const reps = parseInt(String(s.reps), 10) || 0;
+          totalVol += (weight + barbell) * reps;
+        }
       }
     }
 
     return {
       count: myWorkouts.length,
       thisWeek,
-      volume: formatVolume(totalVol),
+      totalVol,
+      volume: (totalVol / 1000).toFixed(1) + "t",
+      volumeRaw: totalVol.toLocaleString() + " kg",
       uniqueEx: uniqueExNames.size,
     };
   }, [myWorkouts, exercises, sets]);
@@ -64,47 +84,81 @@ export default function DashboardPage() {
   );
 
   if (loading) {
-    return <div className="text-text-muted text-sm animate-pulse p-4">Loading dashboard...</div>;
+    return <div className="empty-state"><div className="empty-text">Loading dashboard...</div></div>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Range filter */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+    <div>
+      {/* Range bar */}
+      <div className="dash-range">
         {RANGES.map((r) => (
           <button
             key={r}
             onClick={() => setRange(r)}
-            className={cn(
-              "px-3 py-1.5 rounded-pill text-[0.72rem] font-semibold transition-all duration-200",
-              range === r
-                ? "bg-accent-grad text-[var(--btn-primary-text,#fff)] shadow-sm"
-                : "bg-surface-2 text-text-2 hover:bg-surface-3"
-            )}
+            className={`dash-range-btn${range === r ? " active" : ""}`}
           >
             {r}
           </button>
         ))}
+
+        <button
+          onClick={() => setShowCal(!showCal)}
+          className={`dash-range-cal${range === "custom" ? " active" : ""}`}
+          title="Custom date range"
+        >
+          📅
+        </button>
+
+        <Link href="/log" className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }}>
+          + Log Workout
+        </Link>
       </div>
 
+      {/* Calendar date picker (Fuel Ledger style dropdown) */}
+      {showCal && (
+        <div style={{ marginBottom: "1rem" }}>
+          <DatePicker
+            value={customFrom}
+            placeholder="Pick start date"
+            onChange={(dateStr) => {
+              setCustomFrom(dateStr);
+              setRange("custom");
+              setShowCal(false);
+            }}
+          />
+        </div>
+      )}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Workouts" value={stats.count} icon="🏋️" />
-        <StatCard label="This Week" value={stats.thisWeek} icon="📅" />
-        <StatCard label="Total Volume" value={stats.volume} icon="💪" />
-        <StatCard label="Exercises" value={stats.uniqueEx} icon="🎯" />
+      <div className="stats-row">
+        <StatCard label="Workouts" value={stats.count} sub={RANGE_LABELS[range]} colorClass="ac" />
+        <StatCard label="This Week" value={stats.thisWeek} sub="sessions" colorClass="green" />
+        <StatCard label="Volume" value={stats.volume} sub={stats.volumeRaw} />
+        <StatCard label="Exercises" value={stats.uniqueEx} sub="unique" />
       </div>
 
       {/* Volume chart */}
-      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm">
-        <h3 className="text-[0.82rem] font-bold mb-4">Volume by Day Type</h3>
-        <VolumeChart workouts={myWorkouts} exercises={filteredExercises} sets={filteredSets} />
+      <div className="card" style={{ marginBottom: "1.2rem" }}>
+        <div className="card-header">
+          <h3 className="card-title">Volume by Day Type</h3>
+        </div>
+        <div className="card-body">
+          <div className="chart-wrap">
+            <VolumeChart workouts={myWorkouts} exercises={filteredExercises} sets={filteredSets} />
+          </div>
+        </div>
       </div>
 
-      {/* Frequency chart */}
-      <div className="bg-surface border border-border rounded-xl p-4 shadow-sm">
-        <h3 className="text-[0.82rem] font-bold mb-4">Monthly Grind</h3>
-        <FrequencyChart workouts={workouts.filter((w) => range === "All" || w.date >= cutoff)} />
+      {/* Frequency chart - uses ALL user workouts */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Monthly Grind</h3>
+        </div>
+        <div className="card-body">
+          <div className="chart-wrap">
+            <FrequencyChart workouts={allMyWorkouts} />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import type { Profile } from "@/lib/types";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 interface AuthCtx {
   user: Profile | null;
   loading: boolean;
@@ -24,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkSession = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/session");
+      const res = await fetch(`${BASE}/api/auth/session`);
       const data = await res.json();
       setUser(data.user || null);
     } catch {
@@ -40,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<string | null> => {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -56,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (name: string, email: string, password: string, code: string): Promise<string | null> => {
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(`${BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName: name, email, password, code }),
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch("/api/auth/session", { method: "DELETE" });
+    await fetch(`${BASE}/api/auth/session`, { method: "DELETE" });
     setUser(null);
   };
 

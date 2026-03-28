@@ -46,9 +46,9 @@ export default function ProgressPage() {
         let maxW = 0;
         let vol = 0;
         for (const s of ss) {
-          const effective = s.weight_kg + ex.barbell_weight;
+          const effective = parseFloat(String(s.weight_kg)) + parseFloat(String(ex.barbell_weight));
           if (effective > maxW) maxW = effective;
-          vol += effective * s.reps;
+          vol += effective * parseInt(String(s.reps), 10);
         }
         totalVol += vol;
         if (maxW > overallMax) overallMax = maxW;
@@ -68,22 +68,19 @@ export default function ProgressPage() {
     };
   }, [selectedExName, myWorkouts, exercises, sets]);
 
-  if (loading) return <div className="text-text-muted text-sm animate-pulse">Loading...</div>;
+  if (loading) return <div className="empty-state"><div className="empty-text">Loading...</div></div>;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div>
       {/* Muscle selector */}
-      <div>
-        <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-2 block">Muscle Group</label>
-        <div className="flex gap-2 flex-wrap">
+      <div className="form-group">
+        <label className="form-label">Muscle Group</label>
+        <div className="target-selector">
           {ALL_MUSCLES.map((m) => (
             <button
               key={m}
               onClick={() => { setMuscle(m); setSelectedExName(""); }}
-              className={cn(
-                "px-3 py-1.5 rounded-pill text-[0.75rem] font-semibold border transition-all",
-                muscle === m ? "bg-accent/15 border-accent text-accent" : "border-border text-text-2 hover:border-accent/40"
-              )}
+              className={cn("target-btn", muscle === m && "active")}
             >
               {m}
             </button>
@@ -92,23 +89,20 @@ export default function ProgressPage() {
       </div>
 
       {/* Exercise selector */}
-      <div>
-        <label className="text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted mb-2 block">Exercise</label>
-        <div className="flex gap-2 flex-wrap">
+      <div className="form-group">
+        <label className="form-label">Exercise</label>
+        <div className="exercise-selector">
           {availableExNames.map((name) => (
             <button
               key={name}
               onClick={() => setSelectedExName(name)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[0.78rem] font-medium border transition-all",
-                selectedExName === name ? "bg-accent/10 border-accent text-accent" : "border-border text-text-2 hover:border-accent/40"
-              )}
+              className={cn("ex-sel-btn", selectedExName === name && "active")}
             >
               {name}
             </button>
           ))}
           {availableExNames.length === 0 && (
-            <p className="text-[0.78rem] text-text-muted">No exercises logged yet</p>
+            <p className="assess-label">No exercises logged yet</p>
           )}
         </div>
       </div>
@@ -116,19 +110,25 @@ export default function ProgressPage() {
       {selectedExName && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="1RM / Max" value={`${progressData.maxWeight}kg`} icon="🏆" />
+          <div className="stats-row">
+            <StatCard label="1RM / Max" value={`${progressData.maxWeight}kg`} colorClass="ac" />
             {progressData.ratio !== null && (
-              <StatCard label="1RM / BW" value={progressData.ratio.toFixed(2)} icon="⚖️" />
+              <StatCard label="1RM / BW" value={parseFloat(String(progressData.ratio)).toFixed(2)} />
             )}
-            <StatCard label="Avg Vol/Session" value={`${progressData.avgVol}kg`} icon="📊" />
-            <StatCard label="Sessions" value={progressData.sessions} icon="📅" />
+            <StatCard label="Avg Vol/Session" value={`${progressData.avgVol}kg`} />
+            <StatCard label="Sessions" value={progressData.sessions} />
           </div>
 
           {/* Chart */}
-          <div className="bg-surface border border-border rounded-xl p-4 shadow-sm">
-            <h3 className="text-[0.82rem] font-bold mb-4">{selectedExName} — Progress</h3>
-            <ProgressChart data={progressData.points} />
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">{selectedExName} — Progress</h3>
+            </div>
+            <div className="card-body">
+              <div className="chart-wrap">
+                <ProgressChart data={progressData.points} />
+              </div>
+            </div>
           </div>
         </>
       )}

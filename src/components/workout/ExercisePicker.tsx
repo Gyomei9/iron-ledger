@@ -72,24 +72,19 @@ export default function ExercisePicker({ open, onClose, muscles, onAdd }: Props)
   return (
     <Modal open={open} onClose={() => { reset(); onClose(); }} title="Add Exercise" wide>
       {selectedEx && selectedEx.v ? (
-        <div className="space-y-4">
-          <div className="text-[0.78rem] text-text-2">
-            Building: <span className="font-semibold text-text">{previewName || selectedEx.name}</span>
+        <div>
+          <div className="exercise-meta">
+            Building: <span className="exercise-name">{previewName || selectedEx.name}</span>
           </div>
           {selectedEx.v.map((v, stepIdx) => (
-            <div key={v.label}>
-              <div className="text-[0.72rem] font-semibold text-text-muted mb-2">{v.label}</div>
-              <div className="flex flex-wrap gap-2">
+            <div key={v.label} className="var-step">
+              <div className="var-step-label">{v.label}</div>
+              <div className="var-pills">
                 {v.opts.map((opt) => (
                   <button
                     key={opt}
                     onClick={() => handlePickVariation(stepIdx, opt)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-pill text-[0.75rem] font-medium border transition-all",
-                      varSelections[stepIdx] === opt
-                        ? "bg-accent/15 border-accent text-accent"
-                        : "border-border text-text-2 hover:border-accent/50"
-                    )}
+                    className={cn("var-pill", varSelections[stepIdx] === opt && "active")}
                   >
                     {opt}
                   </button>
@@ -97,23 +92,21 @@ export default function ExercisePicker({ open, onClose, muscles, onAdd }: Props)
               </div>
             </div>
           ))}
-          <button onClick={reset} className="text-[0.72rem] text-text-muted hover:text-text">
+          <button onClick={reset} className="btn btn-secondary btn-sm" style={{ marginTop: "1rem" }}>
             ← Back to exercises
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div>
           {available.map(({ muscle, exercises }) => (
-            <div key={muscle}>
-              <div className="text-[0.7rem] font-bold uppercase tracking-wider text-text-muted mb-2">
-                {muscle}
-              </div>
-              <div className="flex flex-wrap gap-2">
+            <div key={muscle} style={{ marginBottom: "1rem" }}>
+              <div className="form-label">{muscle}</div>
+              <div className="exercise-picker">
                 {exercises.map((ex) => (
                   <button
                     key={ex.id}
                     onClick={() => handlePickExercise(ex)}
-                    className="px-3 py-1.5 rounded-lg text-[0.78rem] font-medium bg-surface-2 border border-border text-text hover:border-accent/50 hover:bg-accent/5 transition-all"
+                    className="exercise-pick"
                   >
                     {ex.name}
                   </button>
@@ -122,24 +115,26 @@ export default function ExercisePicker({ open, onClose, muscles, onAdd }: Props)
             </div>
           ))}
 
-          <div className="border-t border-border pt-4">
+          <div className="exercise-divider">
             {showCustom ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Custom exercise name"
-                  className="flex-1 px-3 py-2 text-[0.8rem] bg-surface-2 border border-border rounded-lg text-text"
-                  onKeyDown={(e) => e.key === "Enter" && handleCustom()}
-                  autoFocus
-                />
-                <button onClick={handleCustom} className="px-4 py-2 bg-accent-grad text-[var(--btn-primary-text,#fff)] rounded-lg text-[0.78rem] font-semibold">
+              <div className="form-row">
+                <div className="form-group">
+                  <input
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    placeholder="Custom exercise name"
+                    className="form-input"
+                    onKeyDown={(e) => e.key === "Enter" && handleCustom()}
+                    autoFocus
+                  />
+                </div>
+                <button onClick={handleCustom} className="btn btn-primary">
                   Add
                 </button>
               </div>
             ) : (
-              <button onClick={() => setShowCustom(true)} className="text-[0.78rem] text-accent hover:underline">
+              <button onClick={() => setShowCustom(true)} className="btn btn-secondary btn-sm">
                 + Custom exercise
               </button>
             )}

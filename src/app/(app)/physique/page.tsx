@@ -3,11 +3,20 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import Modal from "@/components/ui/Modal";
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 import StatCard from "@/components/ui/StatCard";
 import { Line } from "react-chartjs-2";
 import "@/components/charts/ChartSetup";
 import { PhysiqueEntry } from "@/lib/types";
 import { todayISO, fmtDate, cn } from "@/lib/utils";
+
+function getChartColors() {
+  if (typeof window === "undefined") return { text2: "#999", muted: "#666", border: "#333" };
+  const cs = getComputedStyle(document.documentElement);
+  const v = (p: string) => cs.getPropertyValue(p).trim();
+  return { text2: v("--text2"), muted: v("--muted"), border: v("--border") };
+}
 
 export default function PhysiquePage() {
   const { user } = useAuth();
@@ -25,7 +34,7 @@ export default function PhysiquePage() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/physique")
+    fetch(`${BASE}/api/physique`)
       .then((r) => r.json())
       .then((data) => setEntries(data.entries || []))
       .catch(() => {});
@@ -36,33 +45,33 @@ export default function PhysiquePage() {
   const saveEntry = async () => {
     const entry = {
       date: form.date,
-      weight: form.weight ? Number(form.weight) : null,
-      height: form.height ? Number(form.height) : null,
-      fat: form.fat ? Number(form.fat) : null,
-      protein: form.protein ? Number(form.protein) : null,
-      salt: form.salt ? Number(form.salt) : null,
-      water: form.water ? Number(form.water) : null,
-      smm: form.smm ? Number(form.smm) : null,
-      bfm: form.bfm ? Number(form.bfm) : null,
-      bmi: form.bmi ? Number(form.bmi) : null,
-      bfp: form.bfp ? Number(form.bfp) : null,
-      whr: form.whr ? Number(form.whr) : null,
-      water_rate: form.water_rate ? Number(form.water_rate) : null,
-      bmr: form.bmr ? Number(form.bmr) : null,
-      score: form.score ? Number(form.score) : null,
-      bio_age: form.bio_age ? Number(form.bio_age) : null,
+      weight: form.weight ? parseFloat(form.weight) : null,
+      height: form.height ? parseFloat(form.height) : null,
+      fat: form.fat ? parseFloat(form.fat) : null,
+      protein: form.protein ? parseFloat(form.protein) : null,
+      salt: form.salt ? parseFloat(form.salt) : null,
+      water: form.water ? parseFloat(form.water) : null,
+      smm: form.smm ? parseFloat(form.smm) : null,
+      bfm: form.bfm ? parseFloat(form.bfm) : null,
+      bmi: form.bmi ? parseFloat(form.bmi) : null,
+      bfp: form.bfp ? parseFloat(form.bfp) : null,
+      whr: form.whr ? parseFloat(form.whr) : null,
+      water_rate: form.water_rate ? parseFloat(form.water_rate) : null,
+      bmr: form.bmr ? parseFloat(form.bmr) : null,
+      score: form.score ? parseFloat(form.score) : null,
+      bio_age: form.bio_age ? parseFloat(form.bio_age) : null,
       bio: null,
       assessments: null,
     };
 
-    const res = await fetch("/api/physique", {
+    const res = await fetch(`${BASE}/api/physique`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),
     });
 
     if (res.ok) {
-      const reload = await fetch("/api/physique");
+      const reload = await fetch(`${BASE}/api/physique`);
       const data = await reload.json();
       setEntries(data.entries || []);
       setShowNew(false);
@@ -75,57 +84,85 @@ export default function PhysiquePage() {
   // Trends data
   const sorted = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
 
+  const [chartColors, setChartColors] = useState(getChartColors);
+  useEffect(() => {
+    setChartColors(getChartColors());
+    const obs = new MutationObserver(() => setChartColors(getChartColors()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
   const bodyCompChart = useMemo(() => ({
     labels: sorted.map((e) => fmtDate(e.date)),
     datasets: [
-      { label: "Weight", data: sorted.map((e) => e.weight), borderColor: "#3b82f6", tension: 0.4, pointRadius: 4 },
-      { label: "Skeletal Muscle", data: sorted.map((e) => e.smm), borderColor: "#10b981", tension: 0.4, pointRadius: 4 },
-      { label: "Body Fat", data: sorted.map((e) => e.bfm), borderColor: "#ef4444", tension: 0.4, pointRadius: 4 },
+      { label: "Weight", data: sorted.map((e) => e.weight), borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#60a5fa", pointHoverRadius: 6, borderWidth: 2 },
+      { label: "Skeletal Muscle", data: sorted.map((e) => e.smm), borderColor: "#34d399", backgroundColor: "rgba(52,211,153,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#34d399", pointHoverRadius: 6, borderWidth: 2 },
+      { label: "Body Fat", data: sorted.map((e) => e.bfm), borderColor: "#f87171", backgroundColor: "rgba(248,113,113,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#f87171", pointHoverRadius: 6, borderWidth: 2 },
     ],
   }), [sorted]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartOpts: any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: "var(--text2)", font: { family: "Plus Jakarta Sans", size: 11 } } } },
-    scales: {
-      x: { ticks: { color: "var(--muted)", font: { family: "Plus Jakarta Sans", size: 10 } }, grid: { color: "var(--border)" } },
-      y: { ticks: { color: "var(--muted)", font: { family: "Plus Jakarta Sans", size: 10 } }, grid: { color: "var(--border)" } },
-    },
-  };
+  const chartOpts: any = useMemo(() => {
+    const c = chartColors;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index" as const, intersect: false },
+      hover: { mode: "index" as const, intersect: false },
+      plugins: {
+        legend: { labels: { color: c.text2, font: { family: "Plus Jakarta Sans", size: 11, weight: "600" }, boxWidth: 12, padding: 10 } },
+        tooltip: {
+          backgroundColor: "#15171c",
+          titleColor: "#f0f0f3",
+          bodyColor: "#d1d5db",
+          borderColor: c.border,
+          borderWidth: 1,
+          cornerRadius: 10,
+          padding: { top: 10, bottom: 10, left: 14, right: 14 },
+          titleFont: { family: "Plus Jakarta Sans", size: 12, weight: "600" },
+          bodyFont: { family: "Plus Jakarta Sans", size: 13, weight: "500" },
+          titleMarginBottom: 6,
+          displayColors: false,
+          caretSize: 6,
+          caretPadding: 8,
+        },
+      },
+      scales: {
+        x: { ticks: { color: c.text2, font: { family: "Plus Jakarta Sans", size: 10 } }, grid: { color: "rgba(42,45,54,0.4)" } },
+        y: { ticks: { color: c.text2, font: { family: "Plus Jakarta Sans", size: 10 } }, grid: { color: "rgba(42,45,54,0.3)" } },
+      },
+    };
+  }, [chartColors]);
 
   const formField = (label: string, key: keyof typeof form, type = "number") => (
-    <div>
-      <label className="text-[0.68rem] font-semibold text-text-muted block mb-1">{label}</label>
+    <div className="form-group">
+      <label className="form-label">{label}</label>
       <input
         type={type}
         value={form[key]}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-        className="w-full px-2.5 py-1.5 bg-surface-2 border border-border rounded-md text-[0.82rem] text-text"
+        className="form-input"
       />
     </div>
   );
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div>
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="phy-tabs">
         {(["logs", "trends"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={cn(
-              "px-4 py-2 rounded-lg text-[0.82rem] font-semibold transition-all",
-              tab === t ? "bg-accent/15 text-accent" : "text-text-2 hover:bg-surface-2"
-            )}
+            className={cn("phy-tab", tab === t && "active")}
           >
             {t === "logs" ? "BCA Logs" : "Trends"}
           </button>
         ))}
         <button
           onClick={() => setShowNew(true)}
-          className="ml-auto px-4 py-2 bg-accent-grad rounded-lg text-[var(--btn-primary-text,#fff)] text-[0.78rem] font-bold"
+          className="btn btn-primary"
+          style={{ marginLeft: "auto" }}
         >
           + New Entry
         </button>
@@ -136,15 +173,12 @@ export default function PhysiquePage() {
           {entries.length > 0 ? (
             <>
               {/* Entry selector */}
-              <div className="flex gap-2 flex-wrap">
+              <div className="phy-tabs">
                 {entries.map((e, i) => (
                   <button
                     key={e.id}
                     onClick={() => setSelectedIdx(i)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-[0.75rem] font-medium border transition-all",
-                      selectedIdx === i ? "bg-accent/10 border-accent text-accent" : "border-border text-text-2"
-                    )}
+                    className={cn("phy-tab", selectedIdx === i && "active")}
                   >
                     {fmtDate(e.date)}
                   </button>
@@ -153,24 +187,26 @@ export default function PhysiquePage() {
 
               {/* Detail */}
               {current && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {current.weight && <StatCard label="Weight" value={`${current.weight} kg`} icon="⚖️" />}
-                  {current.height && <StatCard label="Height" value={`${current.height} cm`} icon="📏" />}
-                  {current.smm && <StatCard label="Skeletal Muscle" value={`${current.smm} kg`} icon="💪" />}
-                  {current.bfm && <StatCard label="Body Fat Mass" value={`${current.bfm} kg`} icon="🔥" />}
-                  {current.bmi && <StatCard label="BMI" value={current.bmi} icon="📊" />}
-                  {current.bfp && <StatCard label="Body Fat %" value={`${current.bfp}%`} icon="📈" />}
-                  {current.bmr && <StatCard label="BMR" value={`${current.bmr} kcal`} icon="🍽️" />}
-                  {current.score && <StatCard label="Health Score" value={`${current.score}/100`} icon="❤️" />}
-                  {current.bio_age && <StatCard label="Bio Age" value={current.bio_age} icon="🧬" />}
-                  {current.whr && <StatCard label="Waist-Hip" value={current.whr} icon="📐" />}
-                  {current.protein && <StatCard label="Protein" value={`${current.protein} kg`} icon="🥩" />}
-                  {current.water && <StatCard label="Water" value={`${current.water} kg`} icon="💧" />}
+                <div className="stats-row">
+                  {current.weight && <StatCard label="Weight" value={`${current.weight} kg`} />}
+                  {current.height && <StatCard label="Height" value={`${current.height} cm`} />}
+                  {current.smm && <StatCard label="Skeletal Muscle" value={`${current.smm} kg`} />}
+                  {current.bfm && <StatCard label="Body Fat Mass" value={`${current.bfm} kg`} />}
+                  {current.bmi && <StatCard label="BMI" value={current.bmi} />}
+                  {current.bfp && <StatCard label="Body Fat %" value={`${current.bfp}%`} />}
+                  {current.bmr && <StatCard label="BMR" value={`${current.bmr} kcal`} />}
+                  {current.score && <StatCard label="Health Score" value={`${current.score}/100`} />}
+                  {current.bio_age && <StatCard label="Bio Age" value={current.bio_age} />}
+                  {current.whr && <StatCard label="Waist-Hip" value={current.whr} />}
+                  {current.protein && <StatCard label="Protein" value={`${current.protein} kg`} />}
+                  {current.water && <StatCard label="Water" value={`${current.water} kg`} />}
                 </div>
               )}
             </>
           ) : (
-            <div className="text-center text-text-muted text-sm py-12">No BCA entries yet. Add one!</div>
+            <div className="empty-state">
+              <div className="empty-text">No BCA entries yet. Add one!</div>
+            </div>
           )}
         </>
       )}
@@ -183,7 +219,7 @@ export default function PhysiquePage() {
               {(() => {
                 const latest = sorted[sorted.length - 1];
                 const prev = sorted[sorted.length - 2];
-                const delta = (a: number | null, b: number | null) => a != null && b != null ? a - b : null;
+                const delta = (a: number | null, b: number | null) => a != null && b != null ? parseFloat(String(a)) - parseFloat(String(b)) : null;
                 const deltas = [
                   { label: "Weight", val: delta(latest.weight, prev.weight), unit: "kg" },
                   { label: "Muscle", val: delta(latest.smm, prev.smm), unit: "kg" },
@@ -191,11 +227,11 @@ export default function PhysiquePage() {
                   { label: "BF%", val: delta(latest.bfp, prev.bfp), unit: "%" },
                 ];
                 return (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="stats-row">
                     {deltas.map((d) => d.val !== null && (
-                      <div key={d.label} className="bg-surface border border-border rounded-xl p-3 shadow-sm">
-                        <div className="text-[0.68rem] text-text-muted font-semibold mb-1">{d.label}</div>
-                        <div className={`text-lg font-extrabold ${d.val >= 0 ? (d.label === "Body Fat" || d.label === "BF%" ? "text-danger" : "text-ok") : (d.label === "Body Fat" || d.label === "BF%" ? "text-ok" : "text-danger")}`}>
+                      <div key={d.label} className="stat-card">
+                        <div className="stat-label">{d.label}</div>
+                        <div className={`stat-value ${d.val >= 0 ? (d.label === "Body Fat" || d.label === "BF%" ? "text-danger" : "green") : (d.label === "Body Fat" || d.label === "BF%" ? "green" : "text-danger")}`}>
                           {d.val > 0 ? "+" : ""}{d.val.toFixed(1)}{d.unit}
                         </div>
                       </div>
@@ -205,54 +241,57 @@ export default function PhysiquePage() {
               })()}
 
               {/* Body comp chart */}
-              <div className="bg-surface border border-border rounded-xl p-4 shadow-sm">
-                <h3 className="text-[0.82rem] font-bold mb-4">Body Composition</h3>
-                <div className="h-72"><Line data={bodyCompChart} options={chartOpts} /></div>
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Body Composition</h3>
+                </div>
+                <div className="card-body">
+                  <div className="chart-wrap"><Line data={bodyCompChart} options={chartOpts} /></div>
+                </div>
               </div>
             </>
           ) : (
-            <div className="text-center text-text-muted text-sm py-12">Need at least 2 entries for trends</div>
+            <div className="empty-state">
+              <div className="empty-text">Need at least 2 entries for trends</div>
+            </div>
           )}
         </>
       )}
 
       {/* New entry modal */}
       <Modal open={showNew} onClose={() => setShowNew(false)} title="New BCA Entry" wide>
-        <div className="space-y-4">
+        <div>
           {formField("Date", "date", "date")}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="form-row">
             {formField("Weight (kg)", "weight")}
             {formField("Height (cm)", "height")}
           </div>
-          <h4 className="text-[0.75rem] font-bold text-text-muted uppercase tracking-wider">Body Elements</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <h4 className="form-label" style={{ marginTop: "1rem" }}>Body Elements</h4>
+          <div className="form-row">
             {formField("Body Fat (kg)", "fat")}
             {formField("Protein (kg)", "protein")}
             {formField("Salt (kg)", "salt")}
             {formField("Water (kg)", "water")}
           </div>
-          <h4 className="text-[0.75rem] font-bold text-text-muted uppercase tracking-wider">Muscle-Fat Analysis</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <h4 className="form-label" style={{ marginTop: "1rem" }}>Muscle-Fat Analysis</h4>
+          <div className="form-row">
             {formField("Skeletal Muscle (kg)", "smm")}
             {formField("Body Fat Mass (kg)", "bfm")}
           </div>
-          <h4 className="text-[0.75rem] font-bold text-text-muted uppercase tracking-wider">Obesity Analysis</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <h4 className="form-label" style={{ marginTop: "1rem" }}>Obesity Analysis</h4>
+          <div className="form-row">
             {formField("BMI", "bmi")}
             {formField("Body Fat %", "bfp")}
             {formField("Waist-Hip Ratio", "whr")}
             {formField("Water Rate", "water_rate")}
           </div>
-          <h4 className="text-[0.75rem] font-bold text-text-muted uppercase tracking-wider">Health</h4>
-          <div className="grid grid-cols-3 gap-3">
+          <h4 className="form-label" style={{ marginTop: "1rem" }}>Health</h4>
+          <div className="form-row">
             {formField("BMR (kcal)", "bmr")}
             {formField("Score (0-100)", "score")}
             {formField("Bio Age", "bio_age")}
           </div>
-          <button
-            onClick={saveEntry}
-            className="w-full py-2.5 bg-accent-grad rounded-lg text-[var(--btn-primary-text,#fff)] text-[0.82rem] font-bold"
-          >
+          <button onClick={saveEntry} className="btn btn-primary" style={{ width: "100%", marginTop: "1rem" }}>
             Save Entry
           </button>
         </div>

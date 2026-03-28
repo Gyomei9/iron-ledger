@@ -12,7 +12,12 @@ export async function GET() {
     "SELECT * FROM physique_entries WHERE user_id = $1 ORDER BY date DESC",
     [session.userId]
   );
-  return NextResponse.json({ entries: rows });
+  // pg returns date columns as JS Date objects; frontend expects YYYY-MM-DD strings
+  const entries = rows.map((r: Record<string, unknown>) => ({
+    ...r,
+    date: r.date instanceof Date ? r.date.toISOString().split("T")[0] : r.date,
+  }));
+  return NextResponse.json({ entries });
 }
 
 export async function POST(req: NextRequest) {

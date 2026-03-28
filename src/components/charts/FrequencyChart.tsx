@@ -1,72 +1,125 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import "./ChartSetup";
 import type { Workout } from "@/lib/types";
 import { DAY_COLORS, DayType } from "@/lib/types";
-import { getMonthKey } from "@/lib/utils";
+
+const _MON_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 interface Props {
   workouts: Workout[];
 }
 
+function getColors() {
+  if (typeof window === "undefined") return null;
+  const cs = getComputedStyle(document.documentElement);
+  const v = (p: string) => cs.getPropertyValue(p).trim();
+  return { text2: v("--text2"), muted: v("--muted"), border: v("--border"), acRgb: v("--ac-rgb") };
+}
+
 export default function FrequencyChart({ workouts }: Props) {
+  const [colors, setColors] = useState(getColors);
+
+  useEffect(() => {
+    setColors(getColors());
+    const obs = new MutationObserver(() => setColors(getColors()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
   const chartData = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date));
     const months: string[] = [];
     const monthMap: Record<string, Record<DayType, number>> = {};
 
     for (const w of sorted) {
-      const key = getMonthKey(w.date);
+      const d = new Date(w.date + "T00:00:00");
+      const y = String(d.getFullYear());
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const key = y + "-" + m;
       if (!monthMap[key]) {
         monthMap[key] = { Push: 0, Pull: 0, Legs: 0, Arms: 0 };
         months.push(key);
       }
-      monthMap[key][w.day_type]++;
+      monthMap[key][w.day_type as DayType]++;
     }
 
     const dayTypes: DayType[] = ["Push", "Pull", "Legs", "Arms"];
+    const displayLabels = months.map((ym) => {
+      const [y, m] = ym.split("-");
+      return _MON_ABBR[parseInt(m) - 1] + " " + y.slice(2);
+    });
+
     return {
-      labels: months,
+      labels: displayLabels,
       datasets: dayTypes.map((dt) => ({
         label: dt,
         data: months.map((m) => monthMap[m]?.[dt] ?? 0),
-        backgroundColor: DAY_COLORS[dt] + "CC",
-        borderRadius: 4,
+        backgroundColor: DAY_COLORS[dt] + "40",
+        borderColor: DAY_COLORS[dt],
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
       })),
     };
   }, [workouts]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const options: any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        labels: { color: "var(--text2)", font: { family: "Plus Jakarta Sans", size: 11 } },
+  const options: any = useMemo(() => {
+    const c = colors || { text2: "#999", muted: "#666", border: "#333", acRgb: "99,102,241" };
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      hover: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            color: c.text2,
+            font: { family: "Plus Jakarta Sans", size: 11, weight: "600" },
+            usePointStyle: true,
+            pointStyle: "rectRounded",
+            padding: 16,
+          },
+        },
+        tooltip: {
+          backgroundColor: "#15171c",
+          titleColor: "#f0f0f3",
+          bodyColor: "#d1d5db",
+          borderColor: `rgba(${c.acRgb}, 0.2)`,
+          borderWidth: 1,
+          cornerRadius: 10,
+          padding: { top: 10, bottom: 10, left: 14, right: 14 },
+          titleFont: { family: "Plus Jakarta Sans", size: 12, weight: "600" },
+          bodyFont: { family: "Plus Jakarta Sans", size: 13, weight: "500" },
+          titleMarginBottom: 6,
+          displayColors: false,
+          caretSize: 6,
+          caretPadding: 8,
+        },
       },
-    },
-    scales: {
-      x: {
-        stacked: true,
-        ticks: { color: "var(--muted)", font: { family: "Plus Jakarta Sans", size: 10 } },
-        grid: { display: false },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { color: "rgba(42,45,54,0.4)" },
+          ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 11 } },
+        },
+        y: {
+          stacked: true,
+          grid: { color: "rgba(42,45,54,0.3)" },
+          ticks: { color: c.muted, font: { family: "Plus Jakarta Sans", size: 11 }, stepSize: 1 },
+          beginAtZero: true,
+          title: { display: true, text: "Sessions", color: c.muted, font: { family: "Plus Jakarta Sans", size: 10 } },
+        },
       },
-      y: {
-        stacked: true,
-        ticks: { color: "var(--muted)", font: { family: "Plus Jakarta Sans", size: 10 }, stepSize: 1 },
-        grid: { color: "var(--border)", lineWidth: 0.5 },
-      },
-    },
-  };
+    };
+  }, [colors]);
 
   if (workouts.length === 0) {
-    return <div className="h-64 flex items-center justify-center text-text-muted text-sm">No data yet</div>;
+    return <div className="empty-state"><div className="empty-text">No data yet</div></div>;
   }
 
-  return (
-    <div className="h-72">
-      <Bar data={chartData} options={options} />
-    </div>
-  );
+  return <Bar data={chartData} options={options} />;
 }
