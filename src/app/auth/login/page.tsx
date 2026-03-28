@@ -49,7 +49,15 @@ export default function LoginPage() {
       <div className="login-orb login-orb-3" />
 
       <div className="login-box">
-        <div className="login-logo">🏋️</div>
+        <div className="login-logo">
+          <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="18" width="6" height="28" rx="2" fill="var(--ac, #a1a1aa)"/>
+            <rect x="14" y="22" width="5" height="20" rx="1.5" fill="var(--text2, #d4d4d8)"/>
+            <rect x="19" y="29" width="26" height="6" rx="3" fill="var(--muted, #71717a)"/>
+            <rect x="45" y="22" width="5" height="20" rx="1.5" fill="var(--text2, #d4d4d8)"/>
+            <rect x="52" y="18" width="6" height="28" rx="2" fill="var(--ac, #a1a1aa)"/>
+          </svg>
+        </div>
         <div className="login-brand">Iron Ledger</div>
         <div className="login-sub">Track Every Rep &middot; Forge Your Progress</div>
 

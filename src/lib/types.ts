@@ -43,11 +43,23 @@ export const DAY_COLORS: Record<DayType, string> = {
 };
 
 export const DAY_ICONS: Record<DayType, string> = {
-  Push: "🏋️",
-  Pull: "🧲",
-  Legs: "🦵",
-  Arms: "💪",
+  Push: "\u25B2",
+  Pull: "\u25BC",
+  Legs: "\u25C6",
+  Arms: "\u25CF",
 };
+
+export const MUSCLE_COLORS: Record<string, string> = {
+  Chest: "#ef4444", Shoulders: "#f97316", Triceps: "#f59e0b",
+  Back: "#3b82f6", Biceps: "#6366f1", Forearms: "#8b5cf6",
+  Quads: "#10b981", Hamstrings: "#14b8a6", Glutes: "#06b6d4",
+  Calves: "#22d3ee", Adductors: "#34d399", Abductors: "#2dd4bf",
+};
+
+export const DEFAULT_GYMS: Gym[] = [
+  { name: "Club Vita, DLF Park Place", country: "India \u{1F1EE}\u{1F1F3}" },
+  { name: "Srauta Wellness, Sec-17 Fbd", country: "India \u{1F1EE}\u{1F1F3}" },
+];
 
 export type MuscleGroup =
   | "Chest" | "Shoulders" | "Triceps"

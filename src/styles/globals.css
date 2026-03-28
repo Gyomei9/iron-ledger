@@ -594,7 +594,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 
 /* ─── PROGRESS CHARTS ──────────────────── */
-.chart-wrap { position: relative; height: 280px; margin: 1rem 0; }
+.chart-wrap { position: relative; height: 320px; margin: 1rem 0; }
 
 /* ─── WORKOUT HISTORY CARDS ────────────── */
 .workout-card {
@@ -863,7 +863,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 .target-btn:hover { background: var(--surface2); border-color: var(--border2); }
 .target-btn.active {
-  background: rgba(var(--ac-rgb), 0.1); border-color: var(--ac); color: var(--ac);
+  background: rgba(var(--ac-rgb), 0.1);
+  border-color: var(--chip-color, var(--ac));
+  color: var(--chip-color, var(--ac));
 }
 .target-btn .tg-dot {
   width: 7px; height: 7px; border-radius: 50%;

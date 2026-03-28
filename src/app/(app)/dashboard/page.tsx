@@ -114,12 +114,13 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Calendar date picker (Fuel Ledger style dropdown) */}
+      {/* Calendar date picker — opens at month level for quick range selection */}
       {showCal && (
         <div style={{ marginBottom: "1rem" }}>
           <DatePicker
             value={customFrom}
             placeholder="Pick start date"
+            initialMode="months"
             onChange={(dateStr) => {
               setCustomFrom(dateStr);
               setRange("custom");

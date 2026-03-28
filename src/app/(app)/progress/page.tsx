@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/hooks/useStore";
 import StatCard from "@/components/ui/StatCard";
 import ProgressChart from "@/components/charts/ProgressChart";
-import { DAY_TARGETS, MuscleGroup } from "@/lib/types";
+import { DAY_TARGETS, MUSCLE_COLORS, MuscleGroup } from "@/lib/types";
 import { COMPOUND_LIFTS } from "@/lib/exercises";
 import { fmtDate, cn } from "@/lib/utils";
 
@@ -81,7 +81,9 @@ export default function ProgressPage() {
               key={m}
               onClick={() => { setMuscle(m); setSelectedExName(""); }}
               className={cn("target-btn", muscle === m && "active")}
+              style={{ "--chip-color": MUSCLE_COLORS[m] } as React.CSSProperties}
             >
+              <span className="chip-dot" style={{ background: MUSCLE_COLORS[m], width: 6, height: 6, borderRadius: "50%", display: "inline-block", marginRight: "0.3rem" }} />
               {m}
             </button>
           ))}
@@ -126,7 +128,7 @@ export default function ProgressPage() {
             </div>
             <div className="card-body">
               <div className="chart-wrap">
-                <ProgressChart data={progressData.points} />
+                <ProgressChart data={progressData.points} accentColor={MUSCLE_COLORS[muscle]} />
               </div>
             </div>
           </div>

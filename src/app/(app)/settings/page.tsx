@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useToast } from "@/hooks/useToast";
-import { THEMES, COUNTRIES, Gym, ThemeName } from "@/lib/types";
+import { THEMES, COUNTRIES, Gym, DEFAULT_GYMS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -10,14 +10,23 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [gyms, setGyms] = useState<Gym[]>([]);
   const [country, setCountry] = useState("India \u{1F1EE}\u{1F1F3}");
+  const [preferredGym, setPreferredGym] = useState("");
   const [newGymName, setNewGymName] = useState("");
   const [newGymCountry, setNewGymCountry] = useState("India \u{1F1EE}\u{1F1F3}");
 
   useEffect(() => {
     const savedGyms = localStorage.getItem("il-gyms");
-    if (savedGyms) setGyms(JSON.parse(savedGyms));
+    if (savedGyms) {
+      setGyms(JSON.parse(savedGyms));
+    } else {
+      // Seed default gyms on first visit
+      setGyms(DEFAULT_GYMS);
+      localStorage.setItem("il-gyms", JSON.stringify(DEFAULT_GYMS));
+    }
     const savedCountry = localStorage.getItem("il-country");
     if (savedCountry) setCountry(savedCountry);
+    const savedPref = localStorage.getItem("il-preferred-gym");
+    if (savedPref) setPreferredGym(savedPref);
   }, []);
 
   const saveGyms = (updated: Gym[]) => {
@@ -44,6 +53,12 @@ export default function SettingsPage() {
     toast("Default country updated", "success");
   };
 
+  const updatePreferredGym = (val: string) => {
+    setPreferredGym(val);
+    localStorage.setItem("il-preferred-gym", val);
+    toast("Preferred gym updated", "success");
+  };
+
   const lightThemes = THEMES.filter((t) => !t.dark);
   const darkThemes = THEMES.filter((t) => t.dark);
 
@@ -59,7 +74,7 @@ export default function SettingsPage() {
             {gyms.map((g, i) => (
               <div key={i} className="assess-item" style={{ marginBottom: "0.5rem" }}>
                 <span className="assess-label">{g.country} {g.name}</span>
-                <button onClick={() => removeGym(i)} className="btn btn-danger btn-sm">✕</button>
+                <button onClick={() => removeGym(i)} className="btn btn-danger btn-sm">{"\u2715"}</button>
               </div>
             ))}
             {gyms.length === 0 && <p className="assess-label">No gyms added yet</p>}
@@ -88,6 +103,29 @@ export default function SettingsPage() {
               </div>
             </div>
             <button onClick={addGym} className="btn btn-primary">Add</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Preferred Gym */}
+      <section style={{ marginTop: "2rem" }}>
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Preferred Gym</h3>
+          </div>
+          <div className="card-body">
+            <div className="form-group">
+              <select
+                value={preferredGym}
+                onChange={(e) => updatePreferredGym(e.target.value)}
+                className="form-select"
+              >
+                <option value="">None</option>
+                {gyms.map((g) => (
+                  <option key={g.name} value={g.name}>{g.country} {g.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </section>

@@ -50,7 +50,15 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <aside className={`sidebar${open ? " open" : ""}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="brand-icon">🏋️</div>
+          <div className="brand-icon">
+            <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+              <rect x="6" y="18" width="6" height="28" rx="2" fill="var(--ac, #a1a1aa)"/>
+              <rect x="14" y="22" width="5" height="20" rx="1.5" fill="var(--text2, #d4d4d8)"/>
+              <rect x="19" y="29" width="26" height="6" rx="3" fill="var(--muted, #71717a)"/>
+              <rect x="45" y="22" width="5" height="20" rx="1.5" fill="var(--text2, #d4d4d8)"/>
+              <rect x="52" y="18" width="6" height="28" rx="2" fill="var(--ac, #a1a1aa)"/>
+            </svg>
+          </div>
           <div className="brand-name">Iron Ledger</div>
           <div className="brand-tagline">Workout Tracker</div>
         </div>

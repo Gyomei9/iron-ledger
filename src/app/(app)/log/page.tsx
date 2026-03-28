@@ -8,7 +8,7 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 import ExercisePicker from "@/components/workout/ExercisePicker";
 import RestTimer from "@/components/workout/RestTimer";
 import DatePicker from "@/components/ui/DatePicker";
-import { DAY_TYPES, DAY_TARGETS, DAY_ICONS, DayType, MuscleGroup, LogExercise, Gym } from "@/lib/types";
+import { DAY_TYPES, DAY_TARGETS, DAY_ICONS, DAY_COLORS, MUSCLE_COLORS, DEFAULT_GYMS, DayType, MuscleGroup, LogExercise, Gym } from "@/lib/types";
 import { todayISO, uid, cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -35,7 +35,14 @@ export default function LogPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem("il-gyms");
-    if (saved) setGyms(JSON.parse(saved));
+    if (saved) {
+      setGyms(JSON.parse(saved));
+    } else {
+      setGyms(DEFAULT_GYMS);
+      localStorage.setItem("il-gyms", JSON.stringify(DEFAULT_GYMS));
+    }
+    const pref = localStorage.getItem("il-preferred-gym");
+    if (pref) setGym(pref);
   }, []);
 
   const startTimer = useCallback(() => {
@@ -189,7 +196,7 @@ export default function LogPage() {
               data-day={dt}
               className={cn("day-type-btn", dayType === dt && "active")}
             >
-              <span className="dt-icon">{DAY_ICONS[dt]}</span> {dt}
+              <span className="dt-icon" style={{ color: DAY_COLORS[dt] }}>{DAY_ICONS[dt]}</span> {dt}
             </button>
           ))}
         </div>
@@ -204,7 +211,9 @@ export default function LogPage() {
               key={m}
               onClick={() => toggleMuscle(m)}
               className={cn("muscle-chip", selectedMuscles.includes(m) && "active")}
+              style={{ "--chip-color": MUSCLE_COLORS[m] } as React.CSSProperties}
             >
+              <span className="chip-dot" style={{ background: MUSCLE_COLORS[m] }} />
               {m}
             </button>
           ))}

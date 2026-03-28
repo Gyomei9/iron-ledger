@@ -18,6 +18,21 @@ function getChartColors() {
   return { text2: v("--text2"), muted: v("--muted"), border: v("--border") };
 }
 
+// Available metrics for trend chart
+const TREND_METRICS: { key: string; label: string; color: string; unit: string }[] = [
+  { key: "weight", label: "Weight", color: "#60a5fa", unit: "kg" },
+  { key: "smm", label: "Skeletal Muscle", color: "#34d399", unit: "kg" },
+  { key: "bfm", label: "Body Fat Mass", color: "#f87171", unit: "kg" },
+  { key: "bfp", label: "Body Fat %", color: "#fb923c", unit: "%" },
+  { key: "bmi", label: "BMI", color: "#a78bfa", unit: "" },
+  { key: "bmr", label: "BMR", color: "#38bdf8", unit: "kcal" },
+  { key: "score", label: "Health Score", color: "#4ade80", unit: "/100" },
+  { key: "bio_age", label: "Bio Age", color: "#e879f9", unit: "yr" },
+  { key: "whr", label: "Waist-Hip", color: "#fbbf24", unit: "" },
+  { key: "protein", label: "Protein", color: "#2dd4bf", unit: "kg" },
+  { key: "water", label: "Water", color: "#22d3ee", unit: "kg" },
+];
+
 export default function PhysiquePage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -25,6 +40,9 @@ export default function PhysiquePage() {
   const [tab, setTab] = useState<"logs" | "trends">("logs");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [showNew, setShowNew] = useState(false);
+
+  // Trend metric filters (default: weight, smm, bfm)
+  const [activeMetrics, setActiveMetrics] = useState<string[]>(["weight", "smm", "bfm"]);
 
   // Form state
   const [form, setForm] = useState({
@@ -81,6 +99,12 @@ export default function PhysiquePage() {
     }
   };
 
+  const toggleMetric = (key: string) => {
+    setActiveMetrics((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
   // Trends data
   const sorted = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
 
@@ -94,12 +118,22 @@ export default function PhysiquePage() {
 
   const bodyCompChart = useMemo(() => ({
     labels: sorted.map((e) => fmtDate(e.date)),
-    datasets: [
-      { label: "Weight", data: sorted.map((e) => e.weight), borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#60a5fa", pointHoverRadius: 6, borderWidth: 2 },
-      { label: "Skeletal Muscle", data: sorted.map((e) => e.smm), borderColor: "#34d399", backgroundColor: "rgba(52,211,153,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#34d399", pointHoverRadius: 6, borderWidth: 2 },
-      { label: "Body Fat", data: sorted.map((e) => e.bfm), borderColor: "#f87171", backgroundColor: "rgba(248,113,113,0.1)", fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: "#f87171", pointHoverRadius: 6, borderWidth: 2 },
-    ],
-  }), [sorted]);
+    datasets: TREND_METRICS
+      .filter((m) => activeMetrics.includes(m.key))
+      .map((m) => ({
+        label: m.label,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: sorted.map((e) => (e as any)[m.key]),
+        borderColor: m.color,
+        backgroundColor: m.color + "18",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: m.color,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+      })),
+  }), [sorted, activeMetrics]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartOpts: any = useMemo(() => {
@@ -215,6 +249,21 @@ export default function PhysiquePage() {
         <>
           {sorted.length >= 2 ? (
             <>
+              {/* Metric filter chips */}
+              <div className="muscle-group-selector" style={{ marginBottom: "1rem" }}>
+                {TREND_METRICS.map((m) => (
+                  <button
+                    key={m.key}
+                    onClick={() => toggleMetric(m.key)}
+                    className={cn("muscle-chip", activeMetrics.includes(m.key) && "active")}
+                    style={{ "--chip-color": m.color } as React.CSSProperties}
+                  >
+                    <span className="chip-dot" style={{ background: m.color }} />
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Delta cards */}
               {(() => {
                 const latest = sorted[sorted.length - 1];
@@ -246,7 +295,13 @@ export default function PhysiquePage() {
                   <h3 className="card-title">Body Composition</h3>
                 </div>
                 <div className="card-body">
-                  <div className="chart-wrap"><Line data={bodyCompChart} options={chartOpts} /></div>
+                  <div className="chart-wrap">
+                    {activeMetrics.length > 0 ? (
+                      <Line data={bodyCompChart} options={chartOpts} />
+                    ) : (
+                      <div className="empty-state"><div className="empty-text">Select at least one metric</div></div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

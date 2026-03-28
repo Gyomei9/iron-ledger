@@ -8,9 +8,10 @@ interface DatePickerProps {
   value: string;
   onChange: (dateStr: string) => void;
   placeholder?: string;
+  initialMode?: "days" | "months" | "years";
 }
 
-export default function DatePicker({ value, onChange, placeholder = "Select date" }: DatePickerProps) {
+export default function DatePicker({ value, onChange, placeholder = "Select date", initialMode }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value + "T00:00:00");
@@ -53,6 +54,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
       setMode("days");
     } else {
       setOpen(true);
+      if (initialMode) setMode(initialMode);
     }
   };
 

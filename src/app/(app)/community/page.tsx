@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { useStore } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import Modal from "@/components/ui/Modal";
-import { DayType, COUNTRIES, Workout } from "@/lib/types";
+import { DayType, DAY_ICONS, DAY_COLORS, COUNTRIES, Workout } from "@/lib/types";
 import { fmtDate, formatVolume, cn } from "@/lib/utils";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -104,12 +104,18 @@ export default function CommunityPage() {
     return p?.display_name || "?";
   };
 
-  const getFlagForCountry = (country: string | null) => {
-    if (!country) return "";
-    const flagMatch = country.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|[\u{1F1E0}-\u{1F1FF}]{2})\s*/u);
-    if (flagMatch) return flagMatch[1];
-    const c = COUNTRIES.find((ct) => ct.name === country);
-    return c ? c.flag : "";
+  const parseCountry = (country: string | null) => {
+    if (!country) return { flag: "", name: "" };
+    // Check if country string starts with flag emoji (e.g. "India 🇮🇳" or "🇮🇳 India")
+    const flagMatch = country.match(/([\u{1F1E0}-\u{1F1FF}]{2})/u);
+    const flag = flagMatch ? flagMatch[1] : "";
+    // Remove flag and "India" prefix to get clean name, or just return country text
+    const name = country.replace(/([\u{1F1E0}-\u{1F1FF}]{2})/u, "").trim();
+    if (!flag) {
+      const c = COUNTRIES.find((ct) => ct.name === country);
+      return { flag: c?.flag || "", name: country };
+    }
+    return { flag, name };
   };
 
   if (loading) return <div className="empty-state"><div className="empty-text">Loading...</div></div>;
@@ -166,7 +172,7 @@ export default function CommunityPage() {
         let totalVol = 0;
         let totalSets = 0;
         const gym = w.gym || "";
-        const flag = getFlagForCountry(w.country);
+        const { flag } = parseCountry(w.country);
 
         return (
           <div
@@ -186,7 +192,7 @@ export default function CommunityPage() {
                 )}
               </div>
               <span className={cn("badge", DAY_BADGE_CLASS[w.day_type])}>
-                {w.day_type}
+                <span style={{ marginRight: "0.3rem" }}>{DAY_ICONS[w.day_type]}</span>{w.day_type}
               </span>
             </div>
 

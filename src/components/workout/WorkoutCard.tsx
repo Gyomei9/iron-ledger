@@ -1,5 +1,5 @@
 "use client";
-import { Workout, WorkoutExercise, ExerciseSet, DAY_COLORS, DAY_ICONS } from "@/lib/types";
+import { Workout, WorkoutExercise, ExerciseSet, DAY_COLORS, DAY_ICONS, COUNTRIES } from "@/lib/types";
 import { fmtDate, formatVolume } from "@/lib/utils";
 
 interface Props {
@@ -27,6 +27,14 @@ export default function WorkoutCard({ workout, exercises, sets, authorName, onCl
     : workout.day_type === "Arms" ? "b-arms"
     : "";
 
+  const getFlag = (country: string | null) => {
+    if (!country) return "";
+    const m = country.match(/([\u{1F1E0}-\u{1F1FF}]{2})/u);
+    if (m) return m[1];
+    const c = COUNTRIES.find((ct) => ct.name === country);
+    return c?.flag || "";
+  };
+
   return (
     <div onClick={onClick} className="workout-card">
       {/* Header */}
@@ -35,13 +43,13 @@ export default function WorkoutCard({ workout, exercises, sets, authorName, onCl
           <div className="workout-card-date">{fmtDate(workout.date)}</div>
           {workout.gym && (
             <div className="workout-card-location">
-              <span className="wc-flag">{workout.country}</span>
+              <span className="wc-flag">{getFlag(workout.country)}</span>
               <span className="wc-gym">{workout.gym}</span>
             </div>
           )}
         </div>
         <span className={`badge ${dayTypeClass}`}>
-          {DAY_ICONS[workout.day_type]} {workout.day_type}
+          <span style={{ color: DAY_COLORS[workout.day_type] }}>{DAY_ICONS[workout.day_type]}</span> {workout.day_type}
         </span>
       </div>
 
